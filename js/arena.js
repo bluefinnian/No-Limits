@@ -13,7 +13,7 @@ const SLOTS_FOR_COUNT = { 2: [0, 3], 3: [0, 2, 4], 4: [0, 1, 3, 5], 5: [0, 1, 2,
 const DEFAULT_SETTINGS = {
   opponents: 5, blinds: '1/2', stack: 100, speed: 'normal',
   seatTypes: ['TAG', 'FISH', 'LAG', 'STATION', 'MANIAC'],
-  showTypes: true, showCards: false, showEquity: true, inBB: true, autoDeal: true, fourColor: false,
+  showTypes: true, showCards: false, showEquity: true, inBB: true, autoDeal: true, autoReview: true, fourColor: false,
   rangeSel: 'auto', showSuggestion: true,
 };
 
@@ -49,7 +49,7 @@ const Arena = {
     $('#set-blinds').value = s.blinds;
     $('#set-stack').value = s.stack;
     $('#set-speed').value = s.speed;
-    const toggles = { 'set-show-types': 'showTypes', 'set-show-cards': 'showCards', 'set-show-equity': 'showEquity', 'set-in-bb': 'inBB', 'set-auto-deal': 'autoDeal', 'set-four-color': 'fourColor' };
+    const toggles = { 'set-show-types': 'showTypes', 'set-show-cards': 'showCards', 'set-show-equity': 'showEquity', 'set-in-bb': 'inBB', 'set-auto-deal': 'autoDeal', 'set-auto-review': 'autoReview', 'set-four-color': 'fourColor' };
     for (const [id, key] of Object.entries(toggles)) {
       const box = $('#' + id);
       box.checked = !!s[key];
@@ -133,6 +133,7 @@ const Arena = {
     g.on('handEnd', e => this.onHandEnd(e));
 
     $('#hand-log').innerHTML = '';
+    Review.reset();
     this.addLog(`New session: ${seats.length}-handed, blinds ${sb}/${bb}, ${s.stack}bb stacks.`, 'info');
     this.buildSeats();
     this.render();
@@ -143,6 +144,7 @@ const Arena = {
   deal() {
     clearTimeout(this.autoTimer);
     if (!this.game.handOver) return;
+    Review.close();
     this.setMessage('');
     this.game.startHand();
   },
@@ -203,9 +205,11 @@ const Arena = {
 
     for (const p of g.players) {
       const seat = $('#seat-' + p.id);
-      const reveal = p.isHero || p.showCards || (s.showCards && p.cards.length);
+      // Once the hand is over, every opponent's cards are revealed for review.
+      const handDone = g.handOver && g.handNum > 0;
+      const reveal = p.isHero || p.showCards || handDone || (s.showCards && p.cards.length);
       let cards = '';
-      if (p.cards.length && !(p.folded && !p.isHero && !s.showCards)) {
+      if (p.cards.length && !(p.folded && !p.isHero && !s.showCards && !handDone)) {
         cards = p.cards.map(c => (reveal ? Cards.html(c, p.isHero ? 'lg' : '') : Cards.backHtml(''))).join('');
       }
       setHTML($('.seat-cards', seat), cards);
@@ -244,6 +248,7 @@ const Arena = {
     this.renderHandHelper();
     this.renderStats();
     $('#btn-deal').hidden = !g.handOver;
+    $('#btn-review').hidden = !g.handOver || !Review.hands.length;
   },
 
   renderToolbar() {
@@ -274,6 +279,7 @@ const Arena = {
     $('#btn-call').onclick = () => this.heroAction('call');
     $('#btn-raise').onclick = () => this.heroAction('raise');
     $('#btn-deal').onclick = () => this.deal();
+    $('#btn-review').onclick = () => (Review.isOpen() ? Review.close() : Review.open());
     const slider = $('#raise-slider'), input = $('#raise-input');
     slider.oninput = () => { input.value = slider.value; this.updateRaiseLabel(); };
     input.oninput = () => { slider.value = input.value; this.updateRaiseLabel(); };
@@ -286,6 +292,7 @@ const Arena = {
       else if (k === 'c' || k === 'k') this.heroAction('call');
       else if (k === 'r' || k === 'b') this.heroAction('raise');
       else if (k === 'n' || (k === ' ' && this.game.handOver)) { e.preventDefault(); this.deal(); }
+      else if (k === 'v' && this.game.handOver && Review.hands.length) { if (Review.isOpen()) Review.close(); else Review.open(); }
     });
   },
 
@@ -435,9 +442,14 @@ const Arena = {
       return `<div class="${r.player.isHero ? 'win-hero' : ''}">${who} ${this.fmt(r.amount)}${r.hand ? ` — ${r.hand}` : ''}</div>`;
     }).join('');
     this.setMessage(msg);
-    setHTML($('#action-info'), this.settings.autoDeal ? 'Next hand coming up… (press N to deal now)' : 'Hand over — press <b>Deal</b> for the next hand.');
+    Review.addHand(e.history, this.helper);
+    const heroActed = e.history && e.history.actions.some(x => x.pid === hero.id);
+    const reviewing = this.settings.autoReview && heroActed;
+    setHTML($('#action-info'), reviewing ? 'Hand over — review your decisions below, then deal the next hand.'
+      : this.settings.autoDeal ? 'Next hand coming up… (press N to deal now, V to review)' : 'Hand over — press <b>Deal</b> for the next hand or <b>Review hand</b>.');
     this.render();
-    if (this.settings.autoDeal) {
+    if (reviewing) Review.open();
+    else if (this.settings.autoDeal) {
       const wait = Math.max(1600, g.delay * 3.2);
       this.autoTimer = setTimeout(() => this.deal(), wait);
     }

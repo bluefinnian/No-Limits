@@ -206,6 +206,7 @@
               <label><input type="checkbox" id="set-show-equity" checked> Show my equity &amp; pot odds</label>
               <label><input type="checkbox" id="set-in-bb" checked> Show amounts in big blinds</label>
               <label><input type="checkbox" id="set-auto-deal" checked> Auto-deal next hand</label>
+              <label><input type="checkbox" id="set-auto-review" checked> Open hand review after each hand</label>
               <label><input type="checkbox" id="set-four-color"> Four-color deck</label>
             </div>
             <div class="btn-row"><button class="btn btn-primary" id="set-apply">Apply &amp; start new session</button></div>
@@ -236,8 +237,22 @@
               <button class="btn act act-fold" id="btn-fold">Fold <kbd>F</kbd></button>
               <button class="btn act act-call" id="btn-call">Check <kbd>C</kbd></button>
               <button class="btn act act-raise" id="btn-raise">Raise <kbd>R</kbd></button>
+              <button class="btn act act-review" id="btn-review" hidden>Review hand <kbd>V</kbd></button>
               <button class="btn act act-deal" id="btn-deal">Deal <kbd>N</kbd></button>
             </div>
+          </div>
+
+          <div class="panel review-panel" id="review-panel" hidden>
+            <div class="panel-head">
+              <h3>Hand Review</h3>
+              <div class="btn-row">
+                <select id="rv-hand" title="Review an earlier hand"></select>
+                <button class="btn btn-sm" id="rv-close">Close</button>
+                <button class="btn btn-sm btn-primary" id="rv-deal">Deal next hand</button>
+              </div>
+            </div>
+            <p class="hint">Step through each of your decisions (← → keys). Every decision is graded on action, sizing, range and position, using your equity against each opponent's <i>estimated</i> range based on their player type and actions. All hole cards are revealed.</p>
+            <div id="rv-body"></div>
           </div>
         </div>
 
@@ -278,6 +293,8 @@
   <script src="js/ai.js"></script>
   <script src="js/game.js"></script>
   <script src="js/ui.js"></script>
+  <script src="js/analysis.js"></script>
+  <script src="js/review.js"></script>
   <script src="js/study.js"></script>
   <script src="js/builder.js"></script>
   <script src="js/arena.js"></script>

@@ -18,8 +18,15 @@ A browser-based trainer for No-Limit Texas Hold'em. It's plain HTML/CSS/JavaScri
 - AI opponents that play to their type: VPIP/PFR, 3-bet frequency, aggression, bluffing and how often they call down all differ by type.
 - **Range Helper**: choose a saved range, or *Auto* to use the range tagged with your current position. Each hand it shows your hand's raise/call/fold frequencies and an RNG roll from 0–99. Raise covers the lowest numbers, then call, then fold, so the roll tells you which action to take. Your first preflop action is checked against the roll, and **range discipline** is tracked across the session.
 - **Hand Helper**: your made hand, your equity against the remaining players (Monte Carlo against random hands), the pot odds you're getting, and SPR.
+- **Hand Review** after every hand, with every player's hole cards revealed (including what folded hands would have made, and the board cards that weren't dealt). You step through each of your decisions (← →), and each one is graded *Good / Okay / Mistake* on:
+  - **Decision**: your equity against each opponent's *estimated* range (built from their player type and actions) compared with the pot odds, plus the recommended action and size.
+  - **Sizing**: open, 3-bet and raise multiples, and bet size as a share of the pot relative to hand strength and board texture.
+  - **Range**: whether you followed your saved range and its RNG roll preflop, and what share of the opponent's range you beat after the flop.
+  - **Position**: in or out of position, players left to act, and hands too loose for your seat.
+  - **Hindsight**: your equity against their actual cards, and whether a fold would have won. This is shown separately so results don't get mixed up with decision quality.
+  The last 30 hands stay reviewable from a dropdown. Press `V` to toggle the review.
 - Session stats: net bb, bb/100, VPIP, PFR, WTSD, W$SD and buy-ins, plus a full hand log.
-- Keyboard shortcuts: `F` fold, `C` check/call, `R` bet/raise, `N` deal.
+- Keyboard shortcuts: `F` fold, `C` check/call, `R` bet/raise, `N` deal, `V` review hand.
 - Training toggles: reveal all hole cards, hide opponent types, show amounts in big blinds, four-color deck, and AI speed.
 
 ## Running locally
@@ -40,6 +47,8 @@ js/ranges.js      range model, notation parser, presets, storage, preflop streng
 js/ai.js          player-type profiles and AI decision logic
 js/game.js        NLHE game engine (betting, streets, side pots, showdown)
 js/ui.js          shared DOM/rendering helpers
+js/analysis.js    post-hand decision grading (range estimation, equity, sizing, position)
+js/review.js      Hand Review panel UI
 js/study.js       Hands, Tells and Spots tabs
 js/builder.js     Range Builder tab
 js/arena.js       Practice Arena UI, range helper and stats

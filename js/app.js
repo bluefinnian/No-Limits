@@ -10,6 +10,7 @@ const App = {
     Tells.init();
     Spots.init();
     Builder.init();
+    Review.init();
     Arena.init();
 
     $$('#main-tabs button').forEach(b => b.addEventListener('click', () => { location.hash = b.dataset.tab; }));

@@ -104,6 +104,14 @@ class PokerGame {
     for (let r = 0; r < 2; r++) for (let k = 1; k <= n; k++) this.players[(this.dealer + k) % n].cards.push(this.deck.pop());
 
     this.toAct = this.next(bbIdx);
+    this.history = {
+      handNum: this.handNum, sb: this.sb, bb: this.bb, dealer: this.dealer,
+      players: this.players.map(p => ({
+        id: p.id, name: p.name, isHero: p.isHero, profile: p.profile, position: p.position,
+        cards: p.cards.slice(), startStack: p.stack + p.contrib,
+      })),
+      actions: [],
+    };
     this.emit('handStart', { handNum: this.handNum });
     this.emit('update');
     this.later(() => this.loop(), this.delay * 0.6);
@@ -178,6 +186,14 @@ class PokerGame {
     const streetBefore = this.street;
     const toCallBefore = ctx.toCall;
     let label = '';
+    // Snapshot of the decision for the hand review.
+    const snap = {
+      pid: p.id, street: this.street, board: this.board.slice(), pot: ctx.pot, toCall: ctx.toCall,
+      currentBet: this.currentBet, betBefore: p.bet, stackBefore: p.stack, minRaiseTo: ctx.minRaiseTo,
+      maxRaiseTo: ctx.maxRaiseTo, canRaise: ctx.canRaise, raiseLevel: this.raiseLevel,
+      live: this.livePlayers().map(o => o.id),
+      stacks: Object.fromEntries(this.players.map(o => [o.id, o.stack])),
+    };
 
     if (type === 'check' && ctx.toCall > 0) type = 'fold';
     if (type === 'raise' && !ctx.canRaise) type = ctx.toCall > 0 ? 'call' : 'check';
@@ -208,6 +224,13 @@ class PokerGame {
     }
     p.acted = true;
     p.lastAction = label;
+    if (this.history) {
+      snap.type = type;
+      snap.amount = p.bet;
+      snap.added = snap.stackBefore - p.stack;
+      snap.allIn = p.allIn;
+      this.history.actions.push(snap);
+    }
     this.emit('action', { player: p, type, street: streetBefore, toCall: toCallBefore, raiseLevel: this.raiseLevel });
     this.toAct = this.next(this.players.indexOf(p));
     this.emit('update');
@@ -313,7 +336,27 @@ class PokerGame {
     this.waitingForHero = false;
     this.winners = results.map(r => r.player.id);
     for (const p of this.players) { p.bet = 0; p.stack = Math.round(p.stack * 100) / 100; }
+    const h = this.history;
+    if (h) {
+      h.board = this.board.slice();
+      // Cards that would have come had the hand continued (burns included).
+      const deck = this.deck.slice(), full = this.board.slice();
+      while (full.length < 5) {
+        deck.pop();
+        const count = full.length === 0 ? 3 : 1;
+        for (let i = 0; i < count; i++) full.push(deck.pop());
+      }
+      h.runout = full.slice(this.board.length);
+      h.showdown = showdown;
+      h.results = results.map(r => ({ id: r.player.id, amount: r.amount, hand: r.hand }));
+      for (const hp of h.players) {
+        const p = this.players[hp.id];
+        hp.folded = p.folded;
+        hp.endStack = p.stack;
+        hp.net = p.stack - hp.startStack;
+      }
+    }
     this.emit('update');
-    this.emit('handEnd', { results, showdown, board: this.board.slice() });
+    this.emit('handEnd', { results, showdown, board: this.board.slice(), history: h });
   }
 }
