@@ -156,7 +156,8 @@ const Arena = {
     if (!this.game.handOver) return;
     Review.close();
     // Bring the table back into view (e.g. after scrolling down through the hand review).
-    if (window.scrollY > 0) window.scrollTo({ top: 0, behavior: 'smooth' });
+    if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
+    window.scrollTo(0, 0);
     this.setMessage('');
     this.game.startHand();
   },
@@ -316,9 +317,12 @@ const Arena = {
     input.oninput = () => { slider.value = input.value; this.updateRaiseLabel(); };
     document.addEventListener('keydown', e => {
       if (!document.body.classList.contains('on-arena')) return;
-      if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName) && document.activeElement.id !== 'raise-slider') return;
-      if (!$('#modal').hidden) return;
+      if (!$('#modal').hidden || e.ctrlKey || e.metaKey || e.altKey) return;
       const k = e.key.toLowerCase();
+      const tag = document.activeElement.tagName;
+      // Dropdowns don't need N/V, so let the shortcuts work there too (e.g. the review's hand picker).
+      if (tag === 'SELECT' && (k === 'n' || k === 'v')) e.preventDefault();
+      else if (['INPUT', 'SELECT', 'TEXTAREA'].includes(tag) && document.activeElement.id !== 'raise-slider') return;
       if (k === 'f') this.heroAction('fold');
       else if (k === 'c' || k === 'k') this.heroAction('call');
       else if (k === 'r' || k === 'b') this.heroAction('raise');
