@@ -463,7 +463,7 @@ const Tells = {
     $('#tells-library').innerHTML = `
       <div class="chip-row" id="tell-filters">${cats.map((c, i) => `<button class="chip ${i ? '' : 'active'}" data-cat="${c}">${c}</button>`).join('')}</div>
       <div class="card-grid" id="tell-cards"></div>
-      <div class="panel note"><b>Remember:</b> tells are evidence, not proof. Always compare to a player's <i>baseline</i> behaviour, weigh them less than betting patterns, and remember that experienced players may fake them.</div>`;
+      <div class="panel note"><b>Practice it live:</b> opponents in the Practice Arena show these tells as they act — but each one is randomized to be honest or false, weighted by its reliability and the player type. Combine tells with range, position and sizing, then check the Hand Review to see which were real.<br><br><b>Remember:</b> tells are evidence, not proof. Always compare to a player's <i>baseline</i> behaviour, weigh them less than betting patterns, and remember that experienced players may fake them.</div>`;
     const draw = cat => {
       $('#tell-cards').innerHTML = TELLS.filter(t => cat === 'All' || t.cat === cat).map(t => `
         <div class="info-card">

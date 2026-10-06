@@ -207,6 +207,10 @@
               <label><input type="checkbox" id="set-in-bb" checked> Show amounts in big blinds</label>
               <label><input type="checkbox" id="set-auto-deal" checked> Auto-deal next hand</label>
               <label><input type="checkbox" id="set-auto-review" checked> Open hand review after each hand</label>
+              <label><input type="checkbox" id="set-tell-hints" checked> Show what each tell usually means</label>
+              <label class="select-toggle">Opponent tells
+                <select id="set-tell-freq"><option value="off">Off</option><option value="low">Rare</option><option value="normal" selected>Normal</option><option value="high">Frequent</option></select>
+              </label>
               <label><input type="checkbox" id="set-four-color"> Four-color deck</label>
             </div>
             <div class="btn-row"><button class="btn btn-primary" id="set-apply">Apply &amp; start new session</button></div>
@@ -267,6 +271,10 @@
             <div class="panel-head"><h3>Hand Helper</h3></div>
             <div id="hh-body"></div>
           </div>
+          <div class="panel" id="reads-panel">
+            <div class="panel-head"><h3>Table Reads</h3></div>
+            <div id="reads-body"></div>
+          </div>
           <div class="panel" id="session-panel">
             <div class="panel-head"><h3>Session</h3></div>
             <div id="session-stats" class="stats-grid"></div>
@@ -295,6 +303,7 @@
   <script src="js/ui.js"></script>
   <script src="js/analysis.js"></script>
   <script src="js/review.js"></script>
+  <script src="js/tells.js"></script>
   <script src="js/study.js"></script>
   <script src="js/builder.js"></script>
   <script src="js/arena.js"></script>

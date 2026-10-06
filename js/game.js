@@ -111,6 +111,7 @@ class PokerGame {
         cards: p.cards.slice(), startStack: p.stack + p.contrib,
       })),
       actions: [],
+      tells: [],
     };
     this.emit('handStart', { handNum: this.handNum });
     this.emit('update');
@@ -168,7 +169,24 @@ class PokerGame {
       this.waitingForHero = true;
       this.emit('heroTurn', this.decisionContext(p));
     } else {
-      this.later(() => this.act(p, AI.decide(this, p)), this.delay * (0.7 + Math.random() * 0.6));
+      const decision = AI.decide(this, p);
+      const tell = this.tellHook ? this.tellHook(p, decision) : null;
+      let wait = this.delay * (0.7 + Math.random() * 0.6);
+      if (tell && tell.timing === 'snap') wait = Math.min(wait, 120);
+      if (tell && tell.timing === 'tank') {
+        wait = this.delay * 2.6 + 700;
+        p.thinking = true;
+        this.emit('update');
+      }
+      this.later(() => {
+        p.thinking = false;
+        // Emit the tell first so it's on screen when the hero's turn starts.
+        if (tell) {
+          if (this.history) this.history.tells.push(tell);
+          this.emit('tell', tell);
+        }
+        this.act(p, decision);
+      }, wait);
     }
   }
 

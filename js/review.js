@@ -162,6 +162,9 @@ const Review = {
       html += `<div class="tl-line ${p.isHero ? 'tl-hero' : ''}" ${k !== undefined ? `data-step="${k}"` : ''}>
         <span class="pos-badge">${p.position}</span> ${esc(p.name)} — ${Analysis.actionLabel(a, h.bb)}
         ${k !== undefined ? this.badge(analysis.steps[k].verdict) : ''}</div>`;
+      for (const t of (h.tells || []).filter(t => t.actionIdx === i)) {
+        html += `<div class="tl-tell">👁 ${esc(t.text)} <span class="${t.honest === null ? 'muted' : t.honest ? 'good' : 'bad'}">${LiveTells.verdictLabel(t)} (${esc(t.truth.label)})</span></div>`;
+      }
     });
     setHTML($('#rv-timeline'), html);
     $$('#rv-timeline [data-step]').forEach(el => (el.onclick = () => this.go(+el.dataset.step)));
@@ -197,8 +200,8 @@ const Review = {
       ? `<div class="rv-better">Better: <b>${Analysis.recLabel({ ...this.ctxFor(s, h), a }, s.decision.rec)}</b>${s.decision.ok.length ? ` <span class="muted">(also fine: ${s.decision.ok.filter(x => x !== s.decision.rec).join(', ') || '—'})</span>` : ''}</div>`
       : `<div class="rv-better good">✓ This was the recommended play.</div>`;
 
-    const card = (title, obj, extra = '') => obj ? `
-      <div class="rv-card">
+    const card = (title, obj, extra = '', cls = '') => obj ? `
+      <div class="rv-card ${cls}">
         <div class="rv-card-head"><h4>${title}</h4>${obj.verdict ? this.badge(obj.verdict) : ''}</div>
         ${extra}
         ${obj.text ? obj.text.map(t => `<p>${t}</p>`).join('') : obj.reasons.map(t => `<p>${t}</p>`).join('')}
@@ -241,6 +244,7 @@ const Review = {
           ${card('Sizing', s.sizing)}
           ${card('Range', s.range, rangeExtra)}
           ${card('Position', s.position)}
+          ${s.tells ? card('Tells', s.tells, '', 'rv-tells') : ''}
           ${s.hindsight ? `<div class="rv-card rv-hindsight"><div class="rv-card-head"><h4>Hindsight</h4></div><p>${s.hindsight}</p></div>` : ''}
         </div>
       </div>`);

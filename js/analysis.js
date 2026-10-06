@@ -211,12 +211,14 @@ const Analysis = {
     const sizing = this.sizing(ctx, decision);
     const range = this.rangeCard(ctx);
     const position = this.positionCard(ctx, decision);
+    const tells = this.tellsCard(ctx);
     const verdict = this.worst(decision.verdict, sizing && sizing.verdict, range.verdict === 'mistake' ? 'mistake' : null);
 
     return {
       idx, street: a.street, action: a, verdict, decision, sizing, range, position, villains,
       eq: { est: estEq, actual: actualEq, need },
       hindsight: this.hindsight(ctx),
+      tells,
       texture: ctx.texture, ip, spr: a.street > 0 && a.pot ? Math.min(effStack, a.stackBefore) / a.pot : null,
     };
   },
@@ -585,6 +587,60 @@ const Analysis = {
       if (villains.length > 1) r.push(`Multiway pot (${villains.length + 1} players): ranges are stronger and bluffs work less often.`);
     }
     return { verdict, text: r };
+  },
+
+  /* ---------- tells ---------- */
+  tellsCard(ctx) {
+    const { h, idx, villains, hero, a, estEq, need } = ctx;
+    const ids = new Set(villains.map(v => v.id));
+    const list = (h.tells || []).filter(t => t.actionIdx < idx && ids.has(t.pid));
+    if (!list.length) return null;
+    const did = this.heroDid(a);
+    const heroScore = a.board.length ? evaluateHand([...hero.cards, ...a.board]) : 0;
+    const r = [];
+    for (const t of list) {
+      const v = villains.find(x => x.id === t.pid);
+      const meaning = t.signal === 'strong' ? 'strength' : t.signal === 'weak' ? 'weakness' : 'nothing reliable';
+      r.push(`<b>${esc(t.name)}</b> on the ${STREET_NAMES[t.street].toLowerCase()}: <i>"${esc(t.text)}"</i> — conventionally <b>${meaning}</b> (${t.reliability.toLowerCase()} reliability).`);
+
+      // What did range and action already say before the tell?
+      if (t.signal !== 'unclear') {
+        let prior;
+        if (a.board.length && v.est.combos.length) {
+          let ahead = 0;
+          for (const c of v.est.combos) if (evaluateHand([...c, ...a.board]) > heroScore) ahead++;
+          const share = ahead / v.est.combos.length;
+          const agrees = (t.signal === 'strong') === (share >= 0.5);
+          prior = `Their estimated range (${esc(v.est.desc)}) was ahead of your hand ${this.pct(share)} of the time, so the tell <b>${agrees ? 'agreed with' : 'contradicted'}</b> what their range and betting already suggested${agrees ? '' : ' — a contradicting tell deserves less weight'}.`;
+        } else {
+          prior = `Their estimated range (${esc(v.est.desc)}) was roughly the top ${this.pct(v.est.keep)} of hands — use that as your starting point before the tell.`;
+        }
+        r.push(prior);
+      }
+
+      // What was the truth?
+      if (t.honest === null) r.push(`They actually held ${esc(t.truth.label)} (${t.truth.strong ? 'strong' : 'weak'}). Unclear tells like this shouldn't move you either way.`);
+      else r.push(`${t.honest ? '<span class="good">✓ Honest tell</span>' : '<span class="bad">✗ False tell</span>'} — they actually held <b>${esc(t.truth.label)}</b> (${t.truth.strong ? 'strong' : 'weak'}).`);
+
+      // Did the hero follow it, and was that right this time?
+      if (t.signal !== 'unclear' && did !== 'check') {
+        const followed = t.signal === 'weak' ? did === 'call' || did === 'raise' : did === 'fold';
+        const actedOn = did === 'call' || did === 'raise' || did === 'fold';
+        if (actedOn) {
+          const right = followed === !!t.honest;
+          r.push(`You ${followed ? 'acted as if the tell was true' : 'did not follow the tell'} — <b class="${right ? 'good' : 'bad'}">${right ? 'that worked out this time' : 'it cost you this time'}</b>.`);
+        }
+      }
+    }
+    if (a.toCall > 0) {
+      const gap = estEq - need;
+      r.push(Math.abs(gap) < 0.08
+        ? `This was a <b>close</b> spot (${this.pct(estEq)} equity vs ${this.pct(need)} needed) — exactly where a tell can tip the balance.`
+        : `This wasn't close (${this.pct(estEq)} equity vs ${this.pct(need)} needed) — a tell alone shouldn't flip a clear decision.`);
+    } else {
+      r.push('Use tells to adjust close decisions (thin value bets, bluffs, sizing) — not to override range, position and pot odds.');
+    }
+    return { verdict: 'info', text: r };
   },
 
   /* ---------- hindsight ---------- */

@@ -18,6 +18,13 @@ A browser-based trainer for No-Limit Texas Hold'em. It's plain HTML/CSS/JavaScri
 - AI opponents that play to their type: VPIP/PFR, 3-bet frequency, aggression, bluffing and how often they call down all differ by type.
 - **Range Helper**: choose a saved range, or *Auto* to use the range tagged with your current position. Each hand it shows your hand's raise/call/fold frequencies and an RNG roll from 0–99. Raise covers the lowest numbers, then call, then fold, so the roll tells you which action to take. Your first preflop action is checked against the roll, and **range discipline** is tracked across the session.
 - **Hand Helper**: your made hand, your equity against the remaining players (Monte Carlo against random hands), the pot odds you're getting, and SPR.
+- **Live tells**: opponents sometimes show a tell from the Tells library as they act. A bubble appears at their seat, timing tells change how long they take, and every tell is logged in a **Table Reads** panel. Tells show up more often when a player bets into you on the turn or river.
+  - Each player type leans on its own cues: Maniacs splash chips, Fish sigh and act reluctant, Nits glance at their chips, Stations snap-call.
+  - Each player also has a hidden *signature* tell that shows up more often for that player.
+  - **Whether a tell is honest is randomized.** The chance depends on the tell's reliability, the player's type (Regs and LAGs are the most deceptive, Fish and Stations the most honest) and a hidden honesty level for each player. You can't follow tells blindly; weigh them against range, position and bet sizing.
+  - After each hand, every tell is marked honest ✓ or false ✗ along with what the player actually held, and the Table Reads panel keeps a running honesty record for each player.
+  - The Hand Review adds a **Tells** card. It shows whether the tell agreed with what the player's range and betting already suggested, whether it was true, whether following it worked, and whether the spot was close enough for a tell to matter.
+  - Table Setup controls how often tells appear (off, rare, normal or frequent) and whether each tell's usual meaning is shown.
 - **Hand Review** after every hand, with every player's hole cards revealed (including what folded hands would have made, and the board cards that weren't dealt). You step through each of your decisions (← →), and each one is graded *Good / Okay / Mistake* on:
   - **Decision**: your equity against each opponent's *estimated* range (built from their player type and actions) compared with the pot odds, plus the recommended action and size.
   - **Sizing**: open, 3-bet and raise multiples, and bet size as a share of the pot relative to hand strength and board texture.
@@ -49,6 +56,7 @@ js/game.js        NLHE game engine (betting, streets, side pots, showdown)
 js/ui.js          shared DOM/rendering helpers
 js/analysis.js    post-hand decision grading (range estimation, equity, sizing, position)
 js/review.js      Hand Review panel UI
+js/tells.js       live opponent tells (cues, randomized honesty, per-player personalities)
 js/study.js       Hands, Tells and Spots tabs
 js/builder.js     Range Builder tab
 js/arena.js       Practice Arena UI, range helper and stats

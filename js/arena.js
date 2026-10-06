@@ -14,7 +14,7 @@ const DEFAULT_SETTINGS = {
   opponents: 5, blinds: '1/2', stack: 100, speed: 'normal',
   seatTypes: ['TAG', 'FISH', 'LAG', 'STATION', 'MANIAC'],
   showTypes: true, showCards: false, showEquity: true, inBB: true, autoDeal: true, autoReview: true, fourColor: false,
-  rangeSel: 'auto', showSuggestion: true,
+  rangeSel: 'auto', showSuggestion: true, tellFreq: 'normal', tellHints: true,
 };
 
 const Arena = {
@@ -56,6 +56,10 @@ const Arena = {
       // Display toggles apply immediately; no new session needed.
       box.onchange = () => { s[key] = box.checked; this.saveSettings(); this.applyDisplaySettings(); };
     }
+    $('#set-tell-freq').value = s.tellFreq;
+    $('#set-tell-freq').onchange = e => { s.tellFreq = e.target.value; this.saveSettings(); };
+    $('#set-tell-hints').checked = s.tellHints;
+    $('#set-tell-hints').onchange = e => { s.tellHints = e.target.checked; this.saveSettings(); this.renderReads(); };
     $('#set-speed').onchange = e => { s.speed = e.target.value; this.saveSettings(); if (this.game) this.game.speed = s.speed; };
     $('#set-opponents').onchange = () => { this.readSeatTypes(); s.opponents = +$('#set-opponents').value; this.renderSeatTypeInputs(); };
     $$('[data-preset-types]').forEach(b => (b.onclick = () => {
@@ -123,8 +127,13 @@ const Arena = {
     this.helper = null;
     this.lastDiscipline = null;
     this.eqCache = {};
+    this.handTells = [];
+    this.tellStats = {};
 
     const g = this.game;
+    LiveTells.assignPersonalities(g.players);
+    g.tellHook = (p, decision) => LiveTells.maybeGenerate(g, p, decision, { freq: this.settings.tellFreq });
+    g.on('tell', t => this.onTell(t));
     g.on('update', () => this.render());
     g.on('log', e => this.addLog(e.msg, e.cls));
     g.on('heroTurn', ctx => this.onHeroTurn(ctx));
@@ -137,6 +146,7 @@ const Arena = {
     this.addLog(`New session: ${seats.length}-handed, blinds ${sb}/${bb}, ${s.stack}bb stacks.`, 'info');
     this.buildSeats();
     this.render();
+    this.renderReads();
     this.setMessage('Press <b>Deal</b> (or N) to start your session.');
     this.setActionsEnabled(false);
   },
@@ -163,6 +173,7 @@ const Arena = {
           <div class="dealer-btn" hidden>D</div>
         </div>
         <div class="seat-action"></div>
+        <div class="seat-tell" hidden></div>
       </div>
       <div class="bet-chip" id="bet-${p.id}" hidden></div>`).join('');
     $$('.type-badge', wrap).forEach(b => b.addEventListener('click', () => {
@@ -187,6 +198,7 @@ const Arena = {
       seat.style.left = x + '%';
       seat.style.top = y + '%';
       seat.dataset.side = y > 50 ? 'bottom' : 'top';
+      seat.dataset.h = x > 70 ? 'right' : x < 30 ? 'left' : 'center';
       const bx = x + (50 - x) * (portrait ? 0.42 : 0.45);
       const by = y + (48 - y) * (portrait ? 0.38 : 0.45);
       const chip = $('#bet-' + p.id);
@@ -223,6 +235,23 @@ const Arena = {
       seat.classList.toggle('allin', p.allIn && handActive);
       seat.classList.toggle('winner', g.handOver && g.winners && g.winners.includes(p.id));
       seat.classList.toggle('reveal-cards', !!reveal && !p.isHero);
+      seat.classList.toggle('thinking', !!p.thinking && handActive);
+      const tellEl = $('.seat-tell', seat);
+      const lastTell = handActive || g.handOver ? [...this.handTells].reverse().find(t => t.pid === p.id) : null;
+      if (p.thinking && handActive) {
+        tellEl.hidden = false;
+        setHTML(tellEl, '🤔 Thinking…');
+        tellEl.className = 'seat-tell thinking';
+      } else if (lastTell && g.handNum === lastTell.handNum) {
+        tellEl.hidden = false;
+        const stale = lastTell.street !== g.street && handActive;
+        const reveal = g.handOver ? (lastTell.honest === null ? ' ?' : lastTell.honest ? ' ✓' : ' ✗') : '';
+        tellEl.className = `seat-tell sig-${lastTell.signal}${stale ? ' stale' : ''}${g.handOver ? (lastTell.honest ? ' was-honest' : lastTell.honest === false ? ' was-false' : '') : ''}`;
+        tellEl.title = lastTell.text;
+        setHTML(tellEl, `👁 ${esc(lastTell.short)}${reveal}`);
+      } else {
+        tellEl.hidden = true;
+      }
 
       const badge = $('.type-badge', seat);
       if (badge) {
@@ -381,6 +410,8 @@ const Arena = {
   onHandStart() {
     const g = this.game, hero = g.hero;
     this.handState = { startStack: hero.stack + hero.contrib, vpip: false, pfr: false, firstPreflop: true };
+    this.handTells = [];
+    this.renderReads();
     const code = Cards.handCode(hero.cards[0], hero.cards[1]);
     this.helper = { code, roll: Math.floor(Math.random() * 100), range: this.resolveRange(hero.position) };
     this.lastDiscipline = null;
@@ -443,6 +474,12 @@ const Arena = {
     }).join('');
     this.setMessage(msg);
     Review.addHand(e.history, this.helper);
+    for (const t of this.handTells) {
+      const st = this.tellStats[t.pid] = this.tellStats[t.pid] || { shown: 0, honest: 0, false: 0, unclear: 0 };
+      st.shown++;
+      if (t.honest === null) st.unclear++; else if (t.honest) st.honest++; else st.false++;
+    }
+    this.renderReads();
     const heroActed = e.history && e.history.actions.some(x => x.pid === hero.id);
     const reviewing = this.settings.autoReview && heroActed;
     setHTML($('#action-info'), reviewing ? 'Hand over — review your decisions below, then deal the next hand.'
@@ -453,6 +490,39 @@ const Arena = {
       const wait = Math.max(1600, g.delay * 3.2);
       this.autoTimer = setTimeout(() => this.deal(), wait);
     }
+  },
+
+  /* =================== Tells =================== */
+  onTell(t) {
+    this.handTells.push(t);
+    this.addLog(`👁 ${t.text}`, 'tell');
+    this.renderReads();
+    this.render();
+  },
+
+  renderReads() {
+    const body = $('#reads-body');
+    if (!body || !this.game) return;
+    const g = this.game, s = this.settings;
+    if (s.tellFreq === 'off') { setHTML(body, '<p class="hint">Opponent tells are turned off in Table Setup.</p>'); return; }
+    const done = g.handOver;
+    const items = this.handTells.map(t => {
+      const p = g.players[t.pid];
+      const prof = PROFILES[p.profile];
+      const known = (s.showTypes && !this.hiddenTypes.has(p.id)) || this.revealed.has(p.id);
+      const hint = s.tellHints ? `<div class="read-hint">${LiveTells.meaningLabel(t.signal)} · reliability ${t.reliability}</div>` : '';
+      const outcome = done ? `<div class="read-outcome ${t.honest === null ? 'muted' : t.honest ? 'good' : 'bad'}">${t.honest === null ? '?' : t.honest ? '✓' : '✗'} ${LiveTells.verdictLabel(t)} — held ${esc(t.truth.label)}</div>` : '';
+      return `<div class="read-item sig-${t.signal}">
+        <div class="read-head"><span class="tag">${STREET_NAMES[t.street]}</span><b>${esc(p.name)}</b>${known ? `<span class="type-badge" style="background:${prof.color}">${prof.label}</span>` : ''}</div>
+        <div class="read-text">${esc(t.text)}</div>${hint}${outcome}</div>`;
+    }).join('');
+    const record = g.players.filter(p => !p.isHero && this.tellStats[p.id]).map(p => {
+      const st = this.tellStats[p.id];
+      return `<div class="read-record"><span>${esc(p.name)}</span><span><b class="good">${st.honest}</b> honest · <b class="bad">${st.false}</b> false${st.unclear ? ` · ${st.unclear} unclear` : ''}</span></div>`;
+    }).join('');
+    setHTML(body, `
+      ${items || `<p class="hint">${done ? 'No tells this hand.' : 'Watch for tells as opponents act. They\'re randomized — sometimes honest, sometimes not — so weigh them against range, position and bet sizing.'}</p>`}
+      ${record ? `<div class="read-records"><span class="label">Tell record (completed hands)</span>${record}</div>` : ''}`);
   },
 
   renderStats() {
