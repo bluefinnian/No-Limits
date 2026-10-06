@@ -155,6 +155,8 @@ const Arena = {
     clearTimeout(this.autoTimer);
     if (!this.game.handOver) return;
     Review.close();
+    // Bring the table back into view (e.g. after scrolling down through the hand review).
+    if (window.scrollY > 0) window.scrollTo({ top: 0, behavior: 'smooth' });
     this.setMessage('');
     this.game.startHand();
   },
