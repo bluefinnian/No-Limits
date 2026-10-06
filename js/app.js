@@ -11,6 +11,7 @@ const App = {
     Spots.init();
     Builder.init();
     Review.init();
+    HandLab.init();
     Arena.init();
 
     $$('#main-tabs button').forEach(b => b.addEventListener('click', () => { location.hash = b.dataset.tab; }));

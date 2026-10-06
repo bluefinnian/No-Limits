@@ -8,7 +8,7 @@ const VERDICT_RANK = { good: 0, ok: 1, mistake: 2 };
 const VERDICT_LABEL = { good: 'Good', ok: 'Okay', mistake: 'Mistake', info: 'Info' };
 
 /* Standard 6-max raise-first-in frequencies. */
-const RFI = { UTG: 0.15, HJ: 0.19, CO: 0.27, BTN: 0.45, SB: 0.40, BB: 0 };
+const RFI = { UTG: 0.15, 'UTG+1': 0.12, MP: 0.14, LJ: 0.17, HJ: 0.19, CO: 0.27, BTN: 0.45, SB: 0.40, BB: 0 };
 
 const Analysis = {
   /* ---------- small helpers ---------- */
@@ -19,6 +19,7 @@ const Analysis = {
   rfiFor(pos, n) {
     if (n === 2) return pos === 'BTN' ? 0.8 : 0;
     if (n === 3 && pos === 'BTN') return 0.5;
+    if (n >= 7 && pos === 'UTG') return 0.11;
     return RFI[pos] || 0.2;
   },
 
@@ -188,7 +189,9 @@ const Analysis = {
 
     const iters = 1400;
     const estEq = villains.length ? calcEquity([heroCards, ...villains.map(v => (v.est.combos.length ? { combos: v.est.combos } : null))], board, iters)[0] : 1;
-    const actualEq = villains.length ? calcEquity([heroCards, ...villains.map(v => v.cards)], board, iters)[0] : 1;
+    // Opponents' cards may be unknown (e.g. hands entered from live sessions).
+    const allKnown = villains.every(v => Array.isArray(v.cards) && v.cards.length === 2);
+    const actualEq = !allKnown ? null : villains.length ? calcEquity([heroCards, ...villains.map(v => v.cards)], board, iters)[0] : 1;
 
     const nOpp = Math.max(1, villains.length);
     const hs = Math.pow(estEq, 1 / nOpp);
@@ -525,7 +528,15 @@ const Analysis = {
     let verdict = 'info';
     let freq = null;
     const firstPreflop = a.street === 0 && !ctx.prior.some(x => x.pid === hero.id && x.street === 0);
-    if (firstPreflop && helper && helper.range) {
+    if (firstPreflop && helper && helper.range && helper.roll == null) {
+      freq = handFreq(helper.range, code);
+      const did = this.heroDid(a);
+      const f = did === 'raise' ? freq.r : did === 'fold' ? freq.f : a.toCall === 0 ? 100 : freq.c;
+      const best = Math.max(freq.r, freq.c, freq.f);
+      r.push(`Your range <b>${esc(helper.range.name)}</b>: ${code} is raise ${freq.r}% / call ${freq.c}% / fold ${freq.f}%.`);
+      verdict = f === 0 ? 'mistake' : f === best ? 'good' : 'ok';
+      r.push(f === 0 ? `<b>${did.toUpperCase()}</b> isn't part of your range for this hand.` : f === best ? `<b>${did.toUpperCase()}</b> is your range's main action here.` : `<b>${did.toUpperCase()}</b> is in your range ${f}% of the time.`);
+    } else if (firstPreflop && helper && helper.range) {
       freq = handFreq(helper.range, code);
       const target = actionForRoll(freq, helper.roll);
       const did = this.heroDid(a);
@@ -538,7 +549,7 @@ const Analysis = {
       else { verdict = 'mistake'; r.push('That action isn\'t in your range at all for this hand.'); }
     } else if (a.street === 0) {
       r.push(`${code} is in the top <b>${this.pct(pct)}</b> of starting hands (${HAND_ORDER.indexOf(code) + 1} of 169).`);
-      if (firstPreflop) r.push(helper && !helper.range ? `No saved range for ${pos} — build one in the Range Builder to check your discipline here.` : 'Turn on the Range Helper to compare with your own ranges.');
+      if (firstPreflop && !(helper && helper.lab)) r.push(helper && !helper.range ? `No saved range for ${pos} — build one in the Range Builder to check your discipline here.` : 'Turn on the Range Helper to compare with your own ranges.');
     }
     if (a.street > 0 && villains.length) {
       const heroScore = evaluateHand([...hero.cards, ...a.board]);
@@ -562,9 +573,14 @@ const Analysis = {
     let verdict = 'good';
     const did = this.heroDid(a);
     if (a.street === 0) {
-      const behind = { UTG: n - 1, HJ: n - 2, CO: n - 3, BTN: n - 4, SB: 1, BB: 0 }[pos];
+      const layout = POSITION_LAYOUTS[n] || POSITION_LAYOUTS[6];
+      const preflopOrder = n === 2 ? ['BTN', 'BB'] : [...layout.slice(3), 'BTN', 'SB', 'BB'];
+      const behind = n - 1 - preflopOrder.indexOf(pos);
       const notes = {
         UTG: 'First to act with the whole table behind you — play your tightest range.',
+        'UTG+1': 'Early position with most of the table behind you — play tight.',
+        MP: 'Middle position — still fairly tight with several players behind.',
+        LJ: 'Lojack — early-middle position, starting to widen slightly.',
         HJ: 'Early-middle position — still fairly tight.',
         CO: 'Late position — you can open a lot wider.',
         BTN: 'The best seat: you act last on every postflop street. Play your widest range.',
@@ -647,7 +663,7 @@ const Analysis = {
   hindsight(ctx) {
     const { h, a, hero, villains } = ctx;
     const full = [...h.board, ...(h.runout || [])];
-    if (full.length < 5 || !villains.length) return '';
+    if (full.length < 5 || !villains.length || ctx.actualEq === null) return '';
     const heroScore = evaluateHand([...hero.cards, ...full]);
     let best = null;
     for (const v of villains) {

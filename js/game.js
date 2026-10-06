@@ -8,6 +8,9 @@ const POSITION_LAYOUTS = {
   4: ['BTN', 'SB', 'BB', 'CO'],
   5: ['BTN', 'SB', 'BB', 'HJ', 'CO'],
   6: ['BTN', 'SB', 'BB', 'UTG', 'HJ', 'CO'],
+  7: ['BTN', 'SB', 'BB', 'UTG', 'LJ', 'HJ', 'CO'],
+  8: ['BTN', 'SB', 'BB', 'UTG', 'UTG+1', 'LJ', 'HJ', 'CO'],
+  9: ['BTN', 'SB', 'BB', 'UTG', 'UTG+1', 'MP', 'LJ', 'HJ', 'CO'],
 };
 const STREET_NAMES = ['Preflop', 'Flop', 'Turn', 'River', 'Showdown'];
 const SPEED_DELAYS = { slow: 1500, normal: 850, fast: 380, instant: 60 };

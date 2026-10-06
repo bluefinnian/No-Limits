@@ -235,7 +235,7 @@ const Review = {
           ${s.villains.length ? `<div class="rv-opps"><span class="label">Opponents in the hand (cards revealed)</span>${opp}</div>` : ''}
           <div class="rv-eq">
             ${eqBar('Equity vs estimated range', s.eq.est, 'est')}
-            ${eqBar('Equity vs actual cards', s.eq.actual, 'actual')}
+            ${s.eq.actual !== null ? eqBar('Equity vs actual cards', s.eq.actual, 'actual') : ''}
             ${s.eq.need ? `<div class="rv-need">Marker = equity needed to call (${Analysis.pct(s.eq.need)})</div>` : ''}
           </div>
         </div>

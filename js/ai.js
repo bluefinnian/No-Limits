@@ -70,7 +70,7 @@ const PROFILES = {
 const PROFILE_KEYS = Object.keys(PROFILES);
 
 /* How much to widen/narrow a profile's range by position. */
-const POSITION_FACTOR = { UTG: 0.7, HJ: 0.85, CO: 1.1, BTN: 1.5, SB: 1.0, BB: 1.0 };
+const POSITION_FACTOR = { UTG: 0.7, 'UTG+1': 0.72, MP: 0.78, LJ: 0.8, HJ: 0.85, CO: 1.1, BTN: 1.5, SB: 1.0, BB: 1.0 };
 
 const AI = {
   rand: () => Math.random(),
