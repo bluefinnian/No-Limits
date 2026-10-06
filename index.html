@@ -1,0 +1,286 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>No Limits — NLHE Study & Practice</title>
+  <meta name="description" content="Study No-Limit Texas Hold'em hands, tells and spots, build your own ranges and practice against AI opponents.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>♠</text></svg>">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand"><span class="brand-mark">♠</span> No Limits <small>NLHE Study &amp; Practice</small></div>
+    <nav class="tabs" id="main-tabs">
+      <button data-tab="hands">Hands</button>
+      <button data-tab="tells">Tells</button>
+      <button data-tab="spots">Spots</button>
+      <button data-tab="ranges">Range Builder</button>
+      <button data-tab="arena" class="tab-arena">Practice Arena</button>
+    </nav>
+  </header>
+
+  <main>
+    <!-- ================= HANDS ================= -->
+    <section class="tab-panel" id="tab-hands">
+      <div class="section-head">
+        <h1>Study: Hands</h1>
+        <p>Hand rankings, starting hand strength, reading showdowns and drilling your own preflop ranges.</p>
+      </div>
+      <div class="subtabs">
+        <button data-sub="rankings">Hand Rankings</button>
+        <button data-sub="starting">Starting Hands</button>
+        <button data-sub="showdown">Showdown Drill</button>
+        <button data-sub="rangedrill">Range Drill</button>
+        <button data-sub="equity">Equity Calculator</button>
+      </div>
+      <div class="subpanel" data-sub="rankings" id="hands-rankings"></div>
+      <div class="subpanel" data-sub="starting" id="hands-starting"></div>
+      <div class="subpanel" data-sub="showdown" id="hands-showdown"></div>
+      <div class="subpanel" data-sub="rangedrill" id="hands-rangedrill"></div>
+      <div class="subpanel" data-sub="equity" id="hands-equity"></div>
+    </section>
+
+    <!-- ================= TELLS ================= -->
+    <section class="tab-panel" id="tab-tells">
+      <div class="section-head">
+        <h1>Study: Tells</h1>
+        <p>Physical, timing and betting-pattern tells, plus how to recognise and exploit each player type you'll meet in the arena.</p>
+      </div>
+      <div class="subtabs">
+        <button data-sub="library">Tell Library</button>
+        <button data-sub="types">Player Types</button>
+        <button data-sub="quiz">Tell Quiz</button>
+      </div>
+      <div class="subpanel" data-sub="library" id="tells-library"></div>
+      <div class="subpanel" data-sub="types" id="tells-types"></div>
+      <div class="subpanel" data-sub="quiz" id="tells-quiz"></div>
+    </section>
+
+    <!-- ================= SPOTS ================= -->
+    <section class="tab-panel" id="tab-spots">
+      <div class="section-head">
+        <h1>Study: Spots</h1>
+        <p>Work through common decisions street by street, and sharpen the math behind them.</p>
+      </div>
+      <div class="subtabs">
+        <button data-sub="trainer">Spot Trainer</button>
+        <button data-sub="outs">Outs &amp; Odds</button>
+        <button data-sub="math">Math Tools</button>
+        <button data-sub="concepts">Key Concepts</button>
+      </div>
+      <div class="subpanel" data-sub="trainer" id="spots-trainer"></div>
+      <div class="subpanel" data-sub="outs" id="spots-outs"></div>
+      <div class="subpanel" data-sub="math" id="spots-math"></div>
+      <div class="subpanel" data-sub="concepts" id="spots-concepts"></div>
+    </section>
+
+    <!-- ================= RANGE BUILDER ================= -->
+    <section class="tab-panel" id="tab-ranges">
+      <div class="section-head">
+        <h1>Range Builder</h1>
+        <p>Paint hands with a brush (click or drag). Mix raise / call frequencies to build randomized strategies. Ranges save automatically and appear in the Practice Arena.</p>
+      </div>
+      <div class="builder-layout">
+        <aside class="panel builder-list">
+          <div class="panel-head"><h3>My Ranges</h3><button class="btn btn-sm btn-primary" id="rb-new">+ New</button></div>
+          <ul id="rb-list" class="range-list"></ul>
+          <div class="btn-row">
+            <button class="btn btn-sm" id="rb-export">Export</button>
+            <button class="btn btn-sm" id="rb-import">Import</button>
+            <button class="btn btn-sm" id="rb-presets" title="Re-add the default 6-max ranges">Restore presets</button>
+          </div>
+        </aside>
+
+        <div class="builder-main">
+          <div class="panel builder-meta">
+            <label>Name <input type="text" id="rb-name" maxlength="60"></label>
+            <label>Position
+              <select id="rb-position">
+                <option value="">Any</option>
+                <option>UTG</option><option>HJ</option><option>CO</option><option>BTN</option><option>SB</option><option>BB</option>
+              </select>
+            </label>
+            <label class="grow">Notes <input type="text" id="rb-note" maxlength="140" placeholder="e.g. BTN open, 100bb, 2.5x"></label>
+            <div class="btn-row">
+              <button class="btn btn-sm" id="rb-duplicate">Duplicate</button>
+              <button class="btn btn-sm btn-danger" id="rb-delete">Delete</button>
+            </div>
+          </div>
+          <div class="builder-grid-wrap">
+            <div id="rb-grid" class="range-grid big"></div>
+          </div>
+          <div class="hover-info" id="rb-hover">Hover a hand to see its frequencies.</div>
+        </div>
+
+        <aside class="panel builder-tools">
+          <h3>Brush</h3>
+          <div class="brush-presets" id="rb-brushes">
+            <button class="brush" data-r="100" data-c="0"><span class="sw sw-raise"></span>Raise</button>
+            <button class="brush" data-r="0" data-c="100"><span class="sw sw-call"></span>Call</button>
+            <button class="brush" data-r="50" data-c="50"><span class="sw sw-mix"></span>50/50</button>
+            <button class="brush" data-r="0" data-c="0"><span class="sw sw-fold"></span>Fold / Erase</button>
+          </div>
+          <div class="slider-row">
+            <label>Raise <b id="rb-r-val">100%</b></label>
+            <input type="range" id="rb-r" min="0" max="100" step="5" value="100">
+          </div>
+          <div class="slider-row">
+            <label>Call <b id="rb-c-val">0%</b></label>
+            <input type="range" id="rb-c" min="0" max="100" step="5" value="0">
+          </div>
+          <div class="brush-preview"><span>Brush:</span><div id="rb-preview" class="brush-swatch"></div><span id="rb-preview-text"></span></div>
+
+          <h3>Quick select</h3>
+          <div class="chip-row" id="rb-quick">
+            <button class="chip" data-n="22+">Pairs</button>
+            <button class="chip" data-n="A2s+">Suited Aces</button>
+            <button class="chip" data-n="A2o+">Offsuit Aces</button>
+            <button class="chip" data-n="KTs+,QTs+,JTs,KTo+,QTo+,JTo">Broadways</button>
+            <button class="chip" data-n="54s,65s,76s,87s,98s,T9s">Suited Connectors</button>
+            <button class="chip" data-n="53s,64s,75s,86s,97s,T8s,J9s">Suited Gappers</button>
+          </div>
+          <div class="btn-row"><button class="btn btn-sm btn-danger" id="rb-clear">Clear all</button></div>
+
+          <h3>Notation</h3>
+          <textarea id="rb-notation" rows="3" placeholder="e.g. 77+, ATs+, KQo, A5s:50, 65s:c, T9s:r40c60"></textarea>
+          <div class="btn-row">
+            <button class="btn btn-sm btn-primary" id="rb-apply">Apply with brush</button>
+            <button class="btn btn-sm" id="rb-show-notation">Show current</button>
+          </div>
+          <p class="hint">Suffixes: <code>:50</code> raise 50%, <code>:c</code> call, <code>:r60c40</code> mix. No suffix uses the current brush.</p>
+
+          <h3>Range stats</h3>
+          <div id="rb-stats" class="stats-grid"></div>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ================= PRACTICE ARENA ================= -->
+    <section class="tab-panel" id="tab-arena">
+      <div class="arena-layout">
+        <div class="arena-main">
+          <div class="arena-toolbar">
+            <div class="toolbar-info" id="arena-info"></div>
+            <div class="btn-row">
+              <button class="btn btn-sm" id="arena-setup-toggle">⚙ Table Setup</button>
+              <button class="btn btn-sm btn-primary" id="arena-new-session">New Session</button>
+            </div>
+          </div>
+
+          <div class="panel arena-setup" id="arena-setup" hidden>
+            <div class="setup-grid">
+              <label>Opponents
+                <select id="set-opponents">
+                  <option value="1">1 (Heads-up)</option><option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5" selected>5 (6-max)</option>
+                </select>
+              </label>
+              <label>Blinds
+                <select id="set-blinds">
+                  <option value="0.5/1">$0.50 / $1</option><option value="1/2" selected>$1 / $2</option><option value="2/5">$2 / $5</option><option value="5/10">$5 / $10</option>
+                </select>
+              </label>
+              <label>Starting stack
+                <select id="set-stack">
+                  <option value="20">20 bb</option><option value="40">40 bb</option><option value="100" selected>100 bb</option><option value="200">200 bb</option>
+                </select>
+              </label>
+              <label>AI speed
+                <select id="set-speed">
+                  <option value="slow">Slow</option><option value="normal" selected>Normal</option><option value="fast">Fast</option><option value="instant">Instant</option>
+                </select>
+              </label>
+            </div>
+            <h4>Opponent types</h4>
+            <div class="seat-types" id="set-seat-types"></div>
+            <div class="btn-row">
+              <button class="btn btn-sm" data-preset-types="random">All Random</button>
+              <button class="btn btn-sm" data-preset-types="FISH">All Fish</button>
+              <button class="btn btn-sm" data-preset-types="TAG">All TAG</button>
+              <button class="btn btn-sm" data-preset-types="mixed">Mixed table</button>
+            </div>
+            <h4>Display &amp; training</h4>
+            <div class="toggle-grid">
+              <label><input type="checkbox" id="set-show-types" checked> Show opponent types</label>
+              <label><input type="checkbox" id="set-show-cards"> Reveal all hole cards (training)</label>
+              <label><input type="checkbox" id="set-show-equity" checked> Show my equity &amp; pot odds</label>
+              <label><input type="checkbox" id="set-in-bb" checked> Show amounts in big blinds</label>
+              <label><input type="checkbox" id="set-auto-deal" checked> Auto-deal next hand</label>
+              <label><input type="checkbox" id="set-four-color"> Four-color deck</label>
+            </div>
+            <div class="btn-row"><button class="btn btn-primary" id="set-apply">Apply &amp; start new session</button></div>
+          </div>
+
+          <div class="table-wrap">
+            <div class="poker-table" id="poker-table">
+              <div class="felt">
+                <div class="felt-logo">NO LIMITS</div>
+                <div class="pot" id="pot"></div>
+                <div class="board" id="board"></div>
+                <div class="table-msg" id="table-msg"></div>
+              </div>
+              <div id="seats"></div>
+            </div>
+          </div>
+
+          <div class="action-bar" id="action-bar">
+            <div class="action-info" id="action-info">Press <b>Deal</b> to start.</div>
+            <div class="sizing" id="sizing">
+              <div class="size-presets" id="size-presets"></div>
+              <div class="size-input">
+                <input type="range" id="raise-slider" min="0" max="100" step="1">
+                <input type="number" id="raise-input" min="0" step="1">
+              </div>
+            </div>
+            <div class="action-buttons">
+              <button class="btn act act-fold" id="btn-fold">Fold <kbd>F</kbd></button>
+              <button class="btn act act-call" id="btn-call">Check <kbd>C</kbd></button>
+              <button class="btn act act-raise" id="btn-raise">Raise <kbd>R</kbd></button>
+              <button class="btn act act-deal" id="btn-deal">Deal <kbd>N</kbd></button>
+            </div>
+          </div>
+        </div>
+
+        <aside class="arena-side">
+          <div class="panel" id="range-helper">
+            <div class="panel-head"><h3>Range Helper</h3></div>
+            <select id="rh-select"></select>
+            <div id="rh-body" class="rh-body"></div>
+            <label class="small-toggle"><input type="checkbox" id="rh-show-suggestion" checked> Show RNG action</label>
+          </div>
+          <div class="panel" id="hand-helper">
+            <div class="panel-head"><h3>Hand Helper</h3></div>
+            <div id="hh-body"></div>
+          </div>
+          <div class="panel" id="session-panel">
+            <div class="panel-head"><h3>Session</h3></div>
+            <div id="session-stats" class="stats-grid"></div>
+          </div>
+          <div class="panel log-panel">
+            <div class="panel-head"><h3>Hand Log</h3><button class="btn btn-xs" id="log-clear">Clear</button></div>
+            <div id="hand-log" class="hand-log"></div>
+          </div>
+        </aside>
+      </div>
+    </section>
+  </main>
+
+  <div class="modal" id="modal" hidden>
+    <div class="modal-box">
+      <h3 id="modal-title"></h3>
+      <div id="modal-body"></div>
+      <div class="btn-row" id="modal-actions"></div>
+    </div>
+  </div>
+
+  <script src="js/cards.js"></script>
+  <script src="js/ranges.js"></script>
+  <script src="js/ai.js"></script>
+  <script src="js/game.js"></script>
+  <script src="js/ui.js"></script>
+  <script src="js/study.js"></script>
+  <script src="js/builder.js"></script>
+  <script src="js/arena.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

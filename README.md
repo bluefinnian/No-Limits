@@ -1,0 +1,49 @@
+# No Limits — NLHE Study & Practice
+
+A browser-based trainer for No-Limit Texas Hold'em. It's plain HTML/CSS/JavaScript with no build step and no server: open `index.html` or host the folder on GitHub Pages.
+
+## Tabs
+
+| Tab | What's in it |
+| --- | --- |
+| **Hands** | Hand rankings with odds, a starting-hand strength chart, a *Who wins?* showdown drill, a **Range Drill** against your own ranges (with RNG mode), and a Monte Carlo equity calculator (cards, ranges or random hands). |
+| **Tells** | A filterable library of live, timing, betting-pattern and online tells; player-type profiles (TAG, LAG, Nit, Fish, Calling Station, Maniac, Reg) with how to exploit each; and a tell quiz. |
+| **Spots** | A spot trainer with preflop, flop, turn and river decisions, each graded best / okay / mistake with explanations. Also an outs and odds table, math calculators (pot odds, MDF, bluff break-even, SPR, implied odds) and key concepts. |
+| **Range Builder** | A 13×13 grid you paint by clicking or dragging. Brushes can mix raise and call frequencies (for example 60/40). You can also tag a range with a position, apply range notation (`77+, ATs+, A5s:50, 65s:c, T9s:r40c60`), export/import JSON, and restore the 6-max presets. Ranges save automatically in your browser. |
+| **Practice Arena** | An interactive 2–6 handed table against AI opponents. You choose each seat's player type, or *Random (hidden)* so you have to work out the type yourself. |
+
+## Practice Arena features
+
+- A full NLHE engine with blinds, min-raise rules, side pots, all-in run-outs, split pots and uncalled-bet refunds.
+- AI opponents that play to their type: VPIP/PFR, 3-bet frequency, aggression, bluffing and how often they call down all differ by type.
+- **Range Helper**: choose a saved range, or *Auto* to use the range tagged with your current position. Each hand it shows your hand's raise/call/fold frequencies and an RNG roll from 0–99. Raise covers the lowest numbers, then call, then fold, so the roll tells you which action to take. Your first preflop action is checked against the roll, and **range discipline** is tracked across the session.
+- **Hand Helper**: your made hand, your equity against the remaining players (Monte Carlo against random hands), the pot odds you're getting, and SPR.
+- Session stats: net bb, bb/100, VPIP, PFR, WTSD, W$SD and buy-ins, plus a full hand log.
+- Keyboard shortcuts: `F` fold, `C` check/call, `R` bet/raise, `N` deal.
+- Training toggles: reveal all hole cards, hide opponent types, show amounts in big blinds, four-color deck, and AI speed.
+
+## Running locally
+
+```bash
+# any static server works, or just open index.html directly
+python3 -m http.server 8000
+# then visit http://localhost:8000
+```
+
+## Code layout
+
+```
+index.html        page shell and tab markup
+css/style.css     theme, cards, table, grids, responsive layout
+js/cards.js       deck, 7-card hand evaluator, Monte Carlo equity
+js/ranges.js      range model, notation parser, presets, storage, preflop strength
+js/ai.js          player-type profiles and AI decision logic
+js/game.js        NLHE game engine (betting, streets, side pots, showdown)
+js/ui.js          shared DOM/rendering helpers
+js/study.js       Hands, Tells and Spots tabs
+js/builder.js     Range Builder tab
+js/arena.js       Practice Arena UI, range helper and stats
+js/app.js         tab routing and bootstrap
+```
+
+Data such as ranges, settings and the last open tab is stored in `localStorage` in your browser.
