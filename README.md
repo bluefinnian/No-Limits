@@ -10,7 +10,25 @@ A browser-based trainer for No-Limit Texas Hold'em. It's plain HTML/CSS/JavaScri
 | **Tells** | A filterable library of live, timing, betting-pattern and online tells; player-type profiles (TAG, LAG, Nit, Fish, Calling Station, Maniac, Reg) with how to exploit each; and a tell quiz. |
 | **Spots** | A spot trainer with preflop, flop, turn and river decisions, each graded best / okay / mistake with explanations. Also an outs and odds table, math calculators (pot odds, MDF, bluff break-even, SPR, implied odds), key concepts, and the **Hand Lab** (below). |
 | **Range Builder** | A 13×13 grid you paint by clicking or dragging. Brushes can mix raise and call frequencies (for example 60/40). You can also tag a range with a position, apply range notation (`77+, ATs+, A5s:50, 65s:c, T9s:r40c60`), export/import JSON, and restore the 6-max presets. Ranges save automatically in your browser. |
+| **Tournament** | A WSOP-style single-table freezeout against opponents modeled on famous pros, with rising blinds, eliminations and a final leaderboard (see below). |
 | **Practice Arena** | An interactive 2–6 handed table against AI opponents. You choose each seat's player type, or *Random (hidden)* so you have to work out the type yourself. |
+
+## Tournament
+
+- **Freezeout rules**: no rebuys. A player who runs out of chips is eliminated, and the table shrinks by one. If you bust, your tournament is over.
+- **Setup**:
+  - 2–9 players.
+  - Starting chips: 5k–40k.
+  - Starting blinds: 25/50 up to 200/400.
+  - Blinds rise every **1–5 orbits** of the button.
+  - Field: famous pros only, or **mixed** with fictional amateur qualifiers (Fish and Stations).
+  - The usual arena display, tell and review options.
+- **Opponents**: Phil Ivey, Daniel Negreanu, Phil Hellmuth, Tom Dwan, Gus Hansen, Viktor "Isildur1" Blom, Vanessa Selbst, Johnny Chan, Dan Harrington, Fedor Holz, Doyle Brunson, Mike Matusow, Erik Seidel and Stu Ungar. Each is a TAG, LAG, Maniac, Nit or Reg base type tuned to their public reputation (e.g. Negreanu's small-ball sizing, Isildur1's hyper-aggression, Harrington's tight standards). The names are a tribute; the styles are simplified caricatures, not real player data.
+- **During play**:
+  - A **Tournament** panel shows the level, the blinds, hands until the next level, players left, the average stack, and your stack in bb with its M-ratio.
+  - A live **Leaderboard** shows chip counts and who has been eliminated, by whom.
+  - Short-stacked AI players switch to push-or-fold.
+- **When you bust**, the rest of the tournament plays out instantly to settle every place. The **final standings** show each player's place, style, who knocked them out, the hand and level, and mock payouts (a $1,000 buy-in, top 1–3 paid), followed by **Play again** or **Change setup**.
 
 ## Hand Lab (Spots → Hand Lab)
 
@@ -70,6 +88,7 @@ js/ui.js          shared DOM/rendering helpers
 js/analysis.js    post-hand decision grading (range estimation, equity, sizing, position)
 js/review.js      Hand Review panel UI
 js/tells.js       live opponent tells (cues, randomized honesty, per-player personalities)
+js/tournament.js  Tournament Style: famous-pro roster, blind levels, eliminations, leaderboard
 js/handlab.js     Hand Lab: hand entry engine, replay, stats and grading for real-session hands
 js/study.js       Hands, Tells and Spots tabs
 js/builder.js     Range Builder tab

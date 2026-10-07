@@ -21,19 +21,30 @@ const Arena = {
   game: null,
   settings: null,
   revealed: new Set(),
+  tabClass: 'on-arena',
+  settingsKey: 'nlh.arena.settings',
+  defaults: DEFAULT_SETTINGS,
+
+  /* Element lookups are scoped to this table's section so a second table (Tournament) can reuse this controller. */
+  $(sel) { return this.root.querySelector(sel); },
+  $$(sel) { return Array.from(this.root.querySelectorAll(sel)); },
 
   init() {
-    this.settings = Object.assign({}, DEFAULT_SETTINGS, Store.get('nlh.arena.settings', {}));
+    this.root = this.root || $('#tab-arena');
+    this.revealed = new Set();
+    this.review = Object.create(Review);
+    this.review.init(this);
+    this.settings = Object.assign({}, this.defaults, Store.get(this.settingsKey, {}));
     this.bindSetup();
     this.bindActions();
     this.bindRangeHelper();
-    $('#log-clear').onclick = () => { $('#hand-log').innerHTML = ''; };
-    new ResizeObserver(() => this.layoutSeats()).observe($('#poker-table'));
+    this.$('#log-clear').onclick = () => { this.$('#hand-log').innerHTML = ''; };
+    new ResizeObserver(() => this.layoutSeats()).observe(this.$('#poker-table'));
     RangeStore.onChange(() => this.renderRangeHelperOptions());
     this.startSession();
   },
 
-  saveSettings() { Store.set('nlh.arena.settings', this.settings); },
+  saveSettings() { Store.set(this.settingsKey, this.settings); },
 
   fmt(chips) {
     if (!this.game) return chips;
@@ -44,40 +55,40 @@ const Arena = {
   /* =================== Setup =================== */
   bindSetup() {
     const s = this.settings;
-    $('#arena-setup-toggle').onclick = () => { $('#arena-setup').hidden = !$('#arena-setup').hidden; };
-    $('#set-opponents').value = s.opponents;
-    $('#set-blinds').value = s.blinds;
-    $('#set-stack').value = s.stack;
-    $('#set-speed').value = s.speed;
+    this.$('#arena-setup-toggle').onclick = () => { this.$('#arena-setup').hidden = !this.$('#arena-setup').hidden; };
+    this.$('#set-opponents').value = s.opponents;
+    this.$('#set-blinds').value = s.blinds;
+    this.$('#set-stack').value = s.stack;
+    this.$('#set-speed').value = s.speed;
     const toggles = { 'set-show-types': 'showTypes', 'set-show-cards': 'showCards', 'set-show-equity': 'showEquity', 'set-in-bb': 'inBB', 'set-auto-deal': 'autoDeal', 'set-auto-review': 'autoReview', 'set-four-color': 'fourColor' };
     for (const [id, key] of Object.entries(toggles)) {
-      const box = $('#' + id);
+      const box = this.$('#' + id);
       box.checked = !!s[key];
       // Display toggles apply immediately; no new session needed.
       box.onchange = () => { s[key] = box.checked; this.saveSettings(); this.applyDisplaySettings(); };
     }
-    $('#set-tell-freq').value = s.tellFreq;
-    $('#set-tell-freq').onchange = e => { s.tellFreq = e.target.value; this.saveSettings(); };
-    $('#set-tell-hints').checked = s.tellHints;
-    $('#set-tell-hints').onchange = e => { s.tellHints = e.target.checked; this.saveSettings(); this.renderReads(); };
-    $('#set-speed').onchange = e => { s.speed = e.target.value; this.saveSettings(); if (this.game) this.game.speed = s.speed; };
-    $('#set-opponents').onchange = () => { this.readSeatTypes(); s.opponents = +$('#set-opponents').value; this.renderSeatTypeInputs(); };
-    $$('[data-preset-types]').forEach(b => (b.onclick = () => {
+    this.$('#set-tell-freq').value = s.tellFreq;
+    this.$('#set-tell-freq').onchange = e => { s.tellFreq = e.target.value; this.saveSettings(); };
+    this.$('#set-tell-hints').checked = s.tellHints;
+    this.$('#set-tell-hints').onchange = e => { s.tellHints = e.target.checked; this.saveSettings(); this.renderReads(); };
+    this.$('#set-speed').onchange = e => { s.speed = e.target.value; this.saveSettings(); if (this.game) this.game.speed = s.speed; };
+    this.$('#set-opponents').onchange = () => { this.readSeatTypes(); s.opponents = +this.$('#set-opponents').value; this.renderSeatTypeInputs(); };
+    this.$$('[data-preset-types]').forEach(b => (b.onclick = () => {
       const v = b.dataset.presetTypes;
       const mixed = Cards.shuffle(['TAG', 'FISH', 'LAG', 'STATION', 'MANIAC', 'NIT', 'REG']);
       s.seatTypes = Array.from({ length: 5 }, (_, i) => (v === 'random' ? 'RANDOM' : v === 'mixed' ? mixed[i] : v));
       this.renderSeatTypeInputs();
     }));
-    $('#set-apply').onclick = () => {
+    this.$('#set-apply').onclick = () => {
       this.readSeatTypes();
-      s.opponents = +$('#set-opponents').value;
-      s.blinds = $('#set-blinds').value;
-      s.stack = +$('#set-stack').value;
+      s.opponents = +this.$('#set-opponents').value;
+      s.blinds = this.$('#set-blinds').value;
+      s.stack = +this.$('#set-stack').value;
       this.saveSettings();
-      $('#arena-setup').hidden = true;
+      this.$('#arena-setup').hidden = true;
       this.startSession();
     };
-    $('#arena-new-session').onclick = () => {
+    this.$('#arena-new-session').onclick = () => {
       showModal('Start a new session?', '<p>Stacks and session stats will reset.</p>', [
         { label: 'Cancel' },
         { label: 'New session', cls: 'btn-primary', onClick: () => this.startSession() },
@@ -89,39 +100,45 @@ const Arena = {
 
   renderSeatTypeInputs() {
     const s = this.settings;
-    const n = +$('#set-opponents').value;
+    const n = +this.$('#set-opponents').value;
     const opts = `<option value="RANDOM">Random (hidden)</option>` + PROFILE_KEYS.map(k => `<option value="${k}">${PROFILES[k].label} — ${PROFILES[k].name}</option>`).join('');
-    $('#set-seat-types').innerHTML = Array.from({ length: n }, (_, i) => `
+    this.$('#set-seat-types').innerHTML = Array.from({ length: n }, (_, i) => `
       <label>Seat ${i + 1}<select data-seat="${i}">${opts}</select></label>`).join('');
-    $$('#set-seat-types select').forEach((sel, i) => { sel.value = s.seatTypes[i] || 'TAG'; });
+    this.$$('#set-seat-types select').forEach((sel, i) => { sel.value = s.seatTypes[i] || 'TAG'; });
   },
 
   readSeatTypes() {
-    $$('#set-seat-types select').forEach((sel, i) => { this.settings.seatTypes[i] = sel.value; });
+    this.$$('#set-seat-types select').forEach((sel, i) => { this.settings.seatTypes[i] = sel.value; });
   },
 
   applyDisplaySettings() {
     document.body.classList.toggle('four-color', !!this.settings.fourColor);
-    $('#hand-helper').hidden = !this.settings.showEquity;
+    this.$('#hand-helper').hidden = !this.settings.showEquity;
     if (this.game) this.render();
   },
 
   /* =================== Session =================== */
-  startSession() {
-    if (this.game) this.game.destroy();
-    clearTimeout(this.autoTimer);
+  /** Builds the PokerGame for a new session (overridden by Tournament). */
+  createGame() {
     const s = this.settings;
     const [sb, bb] = s.blinds.split('/').map(Number);
     const names = Cards.shuffle(OPPONENT_NAMES.slice());
     const seats = [{ name: 'You', isHero: true }];
-    this.hiddenTypes = new Set();
     for (let i = 0; i < s.opponents; i++) {
       let type = s.seatTypes[i] || 'TAG';
       if (type === 'RANDOM') { type = PROFILE_KEYS[Math.floor(Math.random() * PROFILE_KEYS.length)]; this.hiddenTypes.add(i + 1); }
       seats.push({ name: names[i], profile: type });
     }
+    this.sessionIntro = `New session: ${seats.length}-handed, blinds ${sb}/${bb}, ${s.stack}bb stacks.`;
+    return new PokerGame({ seats, sb, bb, stack: s.stack * bb, speed: s.speed });
+  },
+
+  startSession() {
+    if (this.game) this.game.destroy();
+    clearTimeout(this.autoTimer);
+    this.hiddenTypes = new Set();
     this.revealed = new Set();
-    this.game = new PokerGame({ seats, sb, bb, stack: s.stack * bb, speed: s.speed });
+    this.game = this.createGame();
     this.stats = { hands: 0, net: 0, vpip: 0, pfr: 0, wtsd: 0, wsd: 0, followed: 0, decisions: 0 };
     this.handState = null;
     this.helper = null;
@@ -141,9 +158,9 @@ const Arena = {
     g.on('handStart', () => this.onHandStart());
     g.on('handEnd', e => this.onHandEnd(e));
 
-    $('#hand-log').innerHTML = '';
-    Review.reset();
-    this.addLog(`New session: ${seats.length}-handed, blinds ${sb}/${bb}, ${s.stack}bb stacks.`, 'info');
+    this.$('#hand-log').innerHTML = '';
+    this.review.reset();
+    this.addLog(this.sessionIntro, 'info');
     this.buildSeats();
     this.render();
     this.renderReads();
@@ -154,7 +171,7 @@ const Arena = {
   deal() {
     clearTimeout(this.autoTimer);
     if (!this.game.handOver) return;
-    Review.close();
+    this.review.close();
     // Bring the table back into view (e.g. after scrolling down through the hand review).
     if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
     window.scrollTo(0, 0);
@@ -165,7 +182,7 @@ const Arena = {
   /* =================== Table rendering =================== */
   buildSeats() {
     const g = this.game;
-    const wrap = $('#seats');
+    const wrap = this.$('#seats');
     wrap.innerHTML = g.players.map(p => `
       <div class="seat ${p.isHero ? 'hero' : ''}" id="seat-${p.id}">
         <div class="seat-cards"></div>
@@ -184,27 +201,27 @@ const Arena = {
       if (this.revealed.has(id)) this.revealed.delete(id); else this.revealed.add(id);
       this.render();
     }));
-    setHTML($('#board'), Array.from({ length: 5 }, (_, i) => `<div class="board-slot" id="board-${i}"></div>`).join(''));
+    setHTML(this.$('#board'), Array.from({ length: 5 }, (_, i) => `<div class="board-slot" id="board-${i}"></div>`).join(''));
     this.layoutSeats();
   },
 
   layoutSeats() {
     if (!this.game) return;
-    const table = $('#poker-table');
+    const table = this.$('#poker-table');
     const portrait = table.clientWidth < 640;
     table.classList.toggle('portrait', portrait);
     const coords = SLOT_COORDS[portrait ? 'portrait' : 'landscape'];
     const slots = SLOTS_FOR_COUNT[this.game.players.length];
     this.game.players.forEach((p, i) => {
       const [x, y] = coords[slots[i]];
-      const seat = $('#seat-' + p.id);
+      const seat = this.$('#seat-' + p.id);
       seat.style.left = x + '%';
       seat.style.top = y + '%';
       seat.dataset.side = y > 50 ? 'bottom' : 'top';
       seat.dataset.h = x > 70 ? 'right' : x < 30 ? 'left' : 'center';
       const bx = x + (50 - x) * (portrait ? 0.42 : 0.45);
       const by = y + (48 - y) * (portrait ? 0.38 : 0.45);
-      const chip = $('#bet-' + p.id);
+      const chip = this.$('#bet-' + p.id);
       chip.style.left = bx + '%';
       chip.style.top = by + '%';
     });
@@ -219,7 +236,7 @@ const Arena = {
     const activeId = handActive && toAct && g.canAct(toAct) && !g.roundComplete() ? toAct.id : -1;
 
     for (const p of g.players) {
-      const seat = $('#seat-' + p.id);
+      const seat = this.$('#seat-' + p.id);
       // Once the hand is over, every opponent's cards are revealed for review.
       const handDone = g.handOver && g.handNum > 0;
       const reveal = p.isHero || p.showCards || handDone || (s.showCards && p.cards.length);
@@ -229,12 +246,13 @@ const Arena = {
       }
       setHTML($('.seat-cards', seat), cards);
       $('.pos-badge', seat).textContent = p.position || '';
-      $('.seat-stack', seat).textContent = this.fmt(p.stack);
+      $('.seat-stack', seat).textContent = p.out ? (p.place ? `Out · ${ordinal(p.place)}` : 'Out') : this.fmt(p.stack);
       $('.dealer-btn', seat).hidden = !(p.position === 'BTN' && g.handNum > 0);
       setHTML($('.seat-action', seat), p.lastAction ? esc(p.lastAction.replace(/[\d.]+$/, m => this.fmt(+m))) : '');
       seat.classList.toggle('active', p.id === activeId && !p.isHero);
       seat.classList.toggle('hero-turn', p.id === activeId && p.isHero);
-      seat.classList.toggle('folded', p.folded);
+      seat.classList.toggle('folded', p.folded && !p.out);
+      seat.classList.toggle('out', !!p.out);
       seat.classList.toggle('allin', p.allIn && handActive);
       seat.classList.toggle('winner', g.handOver && g.winners && g.winners.includes(p.id));
       seat.classList.toggle('reveal-cards', !!reveal && !p.isHero);
@@ -266,37 +284,37 @@ const Arena = {
         badge.title = known ? `${prof.name} — click to hide` : 'Unknown type — click to reveal';
       }
 
-      const chip = $('#bet-' + p.id);
+      const chip = this.$('#bet-' + p.id);
       chip.hidden = !(p.bet > 0);
       if (p.bet > 0) setHTML(chip, `<span class="chip-icon"></span>${this.fmt(p.bet)}`);
     }
 
-    for (let i = 0; i < 5; i++) setHTML($('#board-' + i), g.board[i] !== undefined ? Cards.html(g.board[i]) : '');
+    for (let i = 0; i < 5; i++) setHTML(this.$('#board-' + i), g.board[i] !== undefined ? Cards.html(g.board[i]) : '');
     const potNow = g.handNum ? g.pot - g.players.reduce((a, p) => a + p.bet, 0) : 0;
-    setHTML($('#pot'), g.handNum && (handActive || g.pot) ? `Pot <b>${this.fmt(handActive ? g.pot : potNow)}</b>` : '');
+    setHTML(this.$('#pot'), g.handNum && (handActive || g.pot) ? `Pot <b>${this.fmt(handActive ? g.pot : potNow)}</b>` : '');
 
     this.renderToolbar();
     this.renderRangeHelper();
     this.renderHandHelper();
     this.renderStats();
-    $('#btn-deal').hidden = !g.handOver;
-    $('#btn-review').hidden = !g.handOver || !Review.hands.length;
+    this.$('#btn-deal').hidden = !g.handOver;
+    this.$('#btn-review').hidden = !g.handOver || !this.review.hands.length;
   },
 
   renderToolbar() {
     const g = this.game, s = this.settings;
     const net = this.stats.net / g.bb;
-    $('#arena-info').innerHTML = `
+    this.$('#arena-info').innerHTML = `
       <span>Hand <b>#${g.handNum}</b></span>
       <span>Blinds <b>$${g.sb}/$${g.bb}</b></span>
       <span>${g.players.length}-handed</span>
       <span>Net <b class="${net >= 0 ? 'pos' : 'neg'}">${net >= 0 ? '+' : ''}${net.toFixed(1)} bb</b></span>`;
   },
 
-  setMessage(html) { setHTML($('#table-msg'), html); },
+  setMessage(html) { setHTML(this.$('#table-msg'), html); },
 
   addLog(msg, cls = '') {
-    const log = $('#hand-log');
+    const log = this.$('#hand-log');
     const div = document.createElement('div');
     div.className = 'log-line ' + cls;
     div.textContent = msg;
@@ -307,16 +325,16 @@ const Arena = {
 
   /* =================== Hero actions =================== */
   bindActions() {
-    $('#btn-fold').onclick = () => this.heroAction('fold');
-    $('#btn-call').onclick = () => this.heroAction('call');
-    $('#btn-raise').onclick = () => this.heroAction('raise');
-    $('#btn-deal').onclick = () => this.deal();
-    $('#btn-review').onclick = () => (Review.isOpen() ? Review.close() : Review.open());
-    const slider = $('#raise-slider'), input = $('#raise-input');
+    this.$('#btn-fold').onclick = () => this.heroAction('fold');
+    this.$('#btn-call').onclick = () => this.heroAction('call');
+    this.$('#btn-raise').onclick = () => this.heroAction('raise');
+    this.$('#btn-deal').onclick = () => this.deal();
+    this.$('#btn-review').onclick = () => (this.review.isOpen() ? this.review.close() : this.review.open());
+    const slider = this.$('#raise-slider'), input = this.$('#raise-input');
     slider.oninput = () => { input.value = slider.value; this.updateRaiseLabel(); };
     input.oninput = () => { slider.value = input.value; this.updateRaiseLabel(); };
     document.addEventListener('keydown', e => {
-      if (!document.body.classList.contains('on-arena')) return;
+      if (!document.body.classList.contains(this.tabClass)) return;
       if (!$('#modal').hidden || e.ctrlKey || e.metaKey || e.altKey) return;
       const k = e.key.toLowerCase();
       const tag = document.activeElement.tagName;
@@ -327,26 +345,26 @@ const Arena = {
       else if (k === 'c' || k === 'k') this.heroAction('call');
       else if (k === 'r' || k === 'b') this.heroAction('raise');
       else if (k === 'n' || (k === ' ' && this.game.handOver)) { e.preventDefault(); this.deal(); }
-      else if (k === 'v' && this.game.handOver && Review.hands.length) { if (Review.isOpen()) Review.close(); else Review.open(); }
+      else if (k === 'v' && this.game.handOver && this.review.hands.length) { if (this.review.isOpen()) this.review.close(); else this.review.open(); }
     });
   },
 
   setActionsEnabled(on) {
-    ['#btn-fold', '#btn-call', '#btn-raise'].forEach(id => { $(id).disabled = !on; });
-    $('#sizing').classList.toggle('disabled', !on);
-    $('#action-bar').classList.toggle('your-turn', on);
+    ['#btn-fold', '#btn-call', '#btn-raise'].forEach(id => { this.$(id).disabled = !on; });
+    this.$('#sizing').classList.toggle('disabled', !on);
+    this.$('#action-bar').classList.toggle('your-turn', on);
   },
 
   onHeroTurn(ctx) {
     const g = this.game;
     this.ctx = ctx;
     this.setActionsEnabled(true);
-    $('#btn-fold').hidden = ctx.toCall === 0;
-    $('#btn-call').innerHTML = (ctx.toCall === 0 ? 'Check' : `Call ${this.fmt(ctx.toCall)}${ctx.toCall >= g.hero.stack ? ' (all-in)' : ''}`) + ' <kbd>C</kbd>';
-    $('#btn-raise').hidden = !ctx.canRaise;
-    $('#sizing').hidden = !ctx.canRaise;
+    this.$('#btn-fold').hidden = ctx.toCall === 0;
+    this.$('#btn-call').innerHTML = (ctx.toCall === 0 ? 'Check' : `Call ${this.fmt(ctx.toCall)}${ctx.toCall >= g.hero.stack ? ' (all-in)' : ''}`) + ' <kbd>C</kbd>';
+    this.$('#btn-raise').hidden = !ctx.canRaise;
+    this.$('#sizing').hidden = !ctx.canRaise;
     if (ctx.canRaise) {
-      const slider = $('#raise-slider'), input = $('#raise-input');
+      const slider = this.$('#raise-slider'), input = this.$('#raise-input');
       const step = g.sb < 1 ? g.sb : 1;
       for (const el of [slider, input]) { el.min = ctx.minRaiseTo; el.max = ctx.maxRaiseTo; el.step = step; }
       this.renderSizePresets(ctx);
@@ -356,7 +374,7 @@ const Arena = {
     const info = ctx.toCall > 0
       ? `Your turn — <b>${this.fmt(ctx.toCall)}</b> to call into a pot of <b>${this.fmt(ctx.pot)}</b> (need ${pct(ctx.toCall / (ctx.pot + ctx.toCall), 0)} equity).`
       : `Your turn — pot is <b>${this.fmt(ctx.pot)}</b>.`;
-    setHTML($('#action-info'), info);
+    setHTML(this.$('#action-info'), info);
     this.renderRangeHelper();
   },
 
@@ -372,8 +390,8 @@ const Arena = {
       presets = fr.map(([l, f]) => [l, g.currentBet === 0 ? ctx.pot * f : g.currentBet + (ctx.pot + ctx.toCall) * f]);
     }
     presets.push(['All-in', ctx.maxRaiseTo]);
-    $('#size-presets').innerHTML = presets.map(([l, v]) => `<button class="btn btn-xs" data-v="${v}">${l}</button>`).join('');
-    $$('#size-presets button').forEach(b => (b.onclick = () => this.setRaise(+b.dataset.v)));
+    this.$('#size-presets').innerHTML = presets.map(([l, v]) => `<button class="btn btn-xs" data-v="${v}">${l}</button>`).join('');
+    this.$$('#size-presets button').forEach(b => (b.onclick = () => this.setRaise(+b.dataset.v)));
   },
 
   setRaise(v) {
@@ -381,18 +399,18 @@ const Arena = {
     const step = g.sb < 1 ? g.sb : 1;
     v = Math.round(v / step) * step;
     v = Math.max(ctx.minRaiseTo, Math.min(ctx.maxRaiseTo, v));
-    $('#raise-slider').value = v;
-    $('#raise-input').value = +v.toFixed(2);
+    this.$('#raise-slider').value = v;
+    this.$('#raise-input').value = +v.toFixed(2);
     this.updateRaiseLabel();
   },
 
   updateRaiseLabel() {
     const ctx = this.ctx;
     if (!ctx) return;
-    const v = +$('#raise-input').value;
+    const v = +this.$('#raise-input').value;
     const allIn = v >= ctx.maxRaiseTo;
     const word = allIn ? 'All-in' : this.game.currentBet === 0 ? 'Bet' : 'Raise to';
-    $('#btn-raise').innerHTML = `${word} ${this.fmt(Math.min(v, ctx.maxRaiseTo))} <kbd>R</kbd>`;
+    this.$('#btn-raise').innerHTML = `${word} ${this.fmt(Math.min(v, ctx.maxRaiseTo))} <kbd>R</kbd>`;
   },
 
   heroAction(type) {
@@ -404,11 +422,11 @@ const Arena = {
     if (type === 'raise' && !ctx.canRaise) return;
     let amount = 0;
     if (type === 'raise') {
-      amount = +$('#raise-input').value || ctx.minRaiseTo;
+      amount = +this.$('#raise-input').value || ctx.minRaiseTo;
       amount = Math.max(ctx.minRaiseTo, Math.min(ctx.maxRaiseTo, amount));
     }
     this.setActionsEnabled(false);
-    setHTML($('#action-info'), 'Waiting for opponents…');
+    setHTML(this.$('#action-info'), 'Waiting for opponents…');
     g.heroAct({ type, amount });
   },
 
@@ -422,7 +440,7 @@ const Arena = {
     this.helper = { code, roll: Math.floor(Math.random() * 100), range: this.resolveRange(hero.position) };
     this.lastDiscipline = null;
     this.setActionsEnabled(false);
-    setHTML($('#action-info'), 'Dealing…');
+    setHTML(this.$('#action-info'), 'Dealing…');
   },
 
   resolveRange(position) {
@@ -479,7 +497,7 @@ const Arena = {
       return `<div class="${r.player.isHero ? 'win-hero' : ''}">${who} ${this.fmt(r.amount)}${r.hand ? ` — ${r.hand}` : ''}</div>`;
     }).join('');
     this.setMessage(msg);
-    Review.addHand(e.history, this.helper);
+    this.review.addHand(e.history, this.helper);
     for (const t of this.handTells) {
       const st = this.tellStats[t.pid] = this.tellStats[t.pid] || { shown: 0, honest: 0, false: 0, unclear: 0 };
       st.shown++;
@@ -488,10 +506,10 @@ const Arena = {
     this.renderReads();
     const heroActed = e.history && e.history.actions.some(x => x.pid === hero.id);
     const reviewing = this.settings.autoReview && heroActed;
-    setHTML($('#action-info'), reviewing ? 'Hand over — review your decisions below, then deal the next hand.'
+    setHTML(this.$('#action-info'), reviewing ? 'Hand over — review your decisions below, then deal the next hand.'
       : this.settings.autoDeal ? 'Next hand coming up… (press N to deal now, V to review)' : 'Hand over — press <b>Deal</b> for the next hand or <b>Review hand</b>.');
     this.render();
-    if (reviewing) Review.open();
+    if (reviewing) this.review.open();
     else if (this.settings.autoDeal) {
       const wait = Math.max(1600, g.delay * 3.2);
       this.autoTimer = setTimeout(() => this.deal(), wait);
@@ -507,7 +525,7 @@ const Arena = {
   },
 
   renderReads() {
-    const body = $('#reads-body');
+    const body = this.$('#reads-body');
     if (!body || !this.game) return;
     const g = this.game, s = this.settings;
     if (s.tellFreq === 'off') { setHTML(body, '<p class="hint">Opponent tells are turned off in Table Setup.</p>'); return; }
@@ -536,7 +554,7 @@ const Arena = {
     if (!st) return;
     const bbNet = st.net / g.bb;
     const p = (a, b) => (b ? Math.round((a / b) * 100) + '%' : '—');
-    setHTML($('#session-stats'), `
+    setHTML(this.$('#session-stats'), `
       <div><span>Hands</span><b>${st.hands}</b></div>
       <div><span>Net</span><b class="${bbNet >= 0 ? 'pos' : 'neg'}">${bbNet >= 0 ? '+' : ''}${bbNet.toFixed(1)} bb</b></div>
       <div><span>bb / 100</span><b>${st.hands ? ((bbNet / st.hands) * 100).toFixed(1) : '—'}</b></div>
@@ -550,20 +568,20 @@ const Arena = {
 
   /* =================== Range helper =================== */
   bindRangeHelper() {
-    $('#rh-select').onchange = e => {
+    this.$('#rh-select').onchange = e => {
       this.settings.rangeSel = e.target.value;
       this.saveSettings();
       if (this.helper && this.game) this.helper.range = this.resolveRange(this.game.hero.position);
       this.renderRangeHelper();
     };
-    const sug = $('#rh-show-suggestion');
+    const sug = this.$('#rh-show-suggestion');
     sug.checked = this.settings.showSuggestion;
     sug.onchange = () => { this.settings.showSuggestion = sug.checked; this.saveSettings(); this.renderRangeHelper(); };
     this.renderRangeHelperOptions();
   },
 
   renderRangeHelperOptions() {
-    const sel = $('#rh-select');
+    const sel = this.$('#rh-select');
     sel.innerHTML = `<option value="">Off</option><option value="auto">Auto — match my position</option>` +
       RangeStore.ranges.map(r => `<option value="${r.id}">${esc(r.name)}${r.position ? ' (' + r.position + ')' : ''}</option>`).join('');
     const v = this.settings.rangeSel;
@@ -573,7 +591,7 @@ const Arena = {
   },
 
   renderRangeHelper() {
-    const body = $('#rh-body');
+    const body = this.$('#rh-body');
     const g = this.game, h = this.helper;
     if (!this.settings.rangeSel) { setHTML(body, '<p class="hint">Pick a range to see your hand\'s frequencies and an RNG roll every hand.</p>'); return; }
     if (!g || !h || !g.handNum) { setHTML(body, '<p class="hint">Your range info appears here once cards are dealt.</p>'); return; }
@@ -596,14 +614,14 @@ const Arena = {
       ${show ? `<div class="rh-suggest act-${target}">RNG says: <b>${target === 'call' ? (pos === 'SB' && h.range.position === 'SB' ? 'CALL / LIMP' : 'CALL') : target.toUpperCase()}</b></div>` : ''}
       ${d ? `<div class="rh-result ${d.followed ? 'good' : 'bad'}">${d.followed ? '✓ You followed your range' : `✗ You ${d.did === 'check' ? 'checked' : d.did === 'raise' ? 'raised' : d.did === 'call' ? 'called' : 'folded'}; range said ${d.target}`}</div>` : ''}
       <div class="range-grid mini" id="rh-grid"></div>`);
-    renderRangeGrid($('#rh-grid'), h.range.hands, { mini: true, highlight: h.code });
+    renderRangeGrid(this.$('#rh-grid'), h.range.hands, { mini: true, highlight: h.code });
   },
 
   /* =================== Hand helper =================== */
   renderHandHelper() {
     if (!this.settings.showEquity) return;
     const g = this.game, hero = g.hero;
-    const body = $('#hh-body');
+    const body = this.$('#hh-body');
     if (!g.handNum || !hero.cards.length) { setHTML(body, '<p class="hint">Equity and pot odds show here during a hand.</p>'); return; }
     const opps = g.players.filter(p => !p.folded && !p.isHero).length;
     let html = '';

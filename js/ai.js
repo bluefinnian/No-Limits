@@ -77,7 +77,8 @@ const AI = {
 
   /** Returns { type: 'fold'|'check'|'call'|'raise', amount } where amount is the raise-to total. */
   decide(game, p) {
-    const prof = PROFILES[p.profile] || PROFILES.TAG;
+    // Named tournament opponents can carry their own tuned style on top of a base type.
+    const prof = p.styleProfile || PROFILES[p.profile] || PROFILES.TAG;
     const ctx = game.decisionContext(p);
     let d = game.street === 0 ? this.preflop(game, p, prof, ctx) : this.postflop(game, p, prof, ctx);
     return this.sanitize(d, ctx);
@@ -105,11 +106,23 @@ const AI = {
     // Add some noise so the AI isn't perfectly predictable.
     const pct = HAND_PERCENTILE[code] * (0.85 + this.rand() * 0.3);
     // Short-handed tables play wider ranges.
-    const posF = (POSITION_FACTOR[p.position] || 1) * Math.sqrt(6 / game.players.length);
+    const posF = (POSITION_FACTOR[p.position] || 1) * Math.sqrt(6 / game.players.filter(x => !x.out).length);
     const bb = game.bb;
     const level = game.raiseLevel;
     const curBB = game.currentBet / bb;
     const stackBB = (p.stack + p.bet) / bb;
+
+    // Short stacks (tournaments): push or fold.
+    if (stackBB <= 12 && level === 0) {
+      const pushTh = Math.min(0.7, prof.pfr * posF * 2.2 + (12 - stackBB) * 0.02);
+      if (pct < pushTh) return { type: 'raise', amount: p.stack + p.bet };
+      return ctx.toCall === 0 ? { type: 'check' } : { type: 'fold' };
+    }
+    if (stackBB <= 15 && level >= 1) {
+      const reshove = Math.max(0.08, prof.threeBet * 2.5) * (1 + prof.sticky * 2);
+      if (pct < reshove) return { type: 'raise', amount: p.stack + p.bet };
+      return ctx.toCall === 0 ? { type: 'check' } : { type: 'fold' };
+    }
 
     if (level === 0) {
       const limpers = game.players.filter(x => !x.folded && x !== p && x.bet === game.currentBet && x.position !== 'BB' && x.position !== 'SB').length;

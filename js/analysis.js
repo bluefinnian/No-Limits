@@ -101,7 +101,7 @@ const Analysis = {
   estimateRange(h, oppId, upto, dead) {
     const opp = h.players[oppId];
     const prof = PROFILES[opp.profile] || PROFILES.TAG;
-    const n = h.players.length;
+    const n = h.players.filter(p => !p.out).length;
     let keep = 1;
     const desc = [];
     const acts = h.actions.slice(0, upto).filter(a => a.pid === oppId);
@@ -168,7 +168,7 @@ const Analysis = {
     const hero = h.players.find(p => p.isHero);
     const heroCards = hero.cards;
     const code = Cards.handCode(heroCards[0], heroCards[1]);
-    const n = h.players.length;
+    const n = h.players.filter(p => !p.out).length;
     const board = a.board;
     const dead = new Set([...heroCards, ...board]);
     const need = a.toCall > 0 ? a.toCall / (a.pot + a.toCall) : 0;

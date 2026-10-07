@@ -16,7 +16,8 @@ const STREET_NAMES = ['Preflop', 'Flop', 'Turn', 'River', 'Showdown'];
 const SPEED_DELAYS = { slow: 1500, normal: 850, fast: 380, instant: 60 };
 
 class PokerGame {
-  constructor({ seats, sb = 1, bb = 2, stack = 200, speed = 'normal' }) {
+  constructor({ seats, sb = 1, bb = 2, stack = 200, speed = 'normal', rebuy = true }) {
+    this.rebuy = rebuy;
     this.sb = sb;
     this.bb = bb;
     this.startStack = stack;
@@ -63,8 +64,18 @@ class PokerGame {
   fmt(chips) { return `${+(chips).toFixed(2)}`; }
   log(msg, cls = '') { this.emit('log', { msg, cls }); }
 
-  next(i) { return (i + 1) % this.players.length; }
-  canAct(p) { return !p.folded && !p.allIn; }
+  /** Next seat clockwise, skipping eliminated (out) players. */
+  next(i) {
+    const len = this.players.length;
+    let j = i;
+    for (let k = 0; k < len; k++) {
+      j = (j + 1) % len;
+      if (!this.players[j].out) return j;
+    }
+    return j;
+  }
+  canAct(p) { return !p.folded && !p.allIn && !p.out; }
+  get activePlayers() { return this.players.filter(p => !p.out); }
   livePlayers() { return this.players.filter(p => !p.folded); }
 
   /* ---------- Hand setup ---------- */
@@ -72,21 +83,26 @@ class PokerGame {
     this.gen++;
     this.timers.forEach(clearTimeout);
     this.timers = [];
-    const n = this.players.length;
     this.handNum++;
-    this.dealer = this.next(this.dealer);
 
     for (const p of this.players) {
-      if (p.stack < this.bb) {
-        if (p.isHero) this.log(`You rebuy for ${this.fmt(this.startStack)}.`, 'info');
-        p.stack += this.startStack;
-        p.buyins++;
+      if (!p.out && p.stack < this.bb) {
+        if (this.rebuy) {
+          if (p.isHero) this.log(`You rebuy for ${this.fmt(this.startStack)}.`, 'info');
+          p.stack += this.startStack;
+          p.buyins++;
+        } else if (p.stack <= 0) {
+          p.out = true; // tournament: no chips left = eliminated
+        }
       }
-      Object.assign(p, { cards: [], bet: 0, contrib: 0, folded: false, allIn: false, acted: false, lastAction: '', showCards: p.isHero });
+      Object.assign(p, { cards: [], bet: 0, contrib: 0, folded: !!p.out, allIn: false, acted: false, lastAction: '', showCards: p.isHero && !p.out });
+      if (p.out) p.position = '';
     }
 
+    const n = this.activePlayers.length;
+    this.dealer = this.next(this.dealer);
     const layout = POSITION_LAYOUTS[n];
-    for (let k = 0; k < n; k++) this.players[(this.dealer + k) % n].position = layout[k];
+    for (let k = 0, i = this.dealer; k < n; k++, i = this.next(i)) this.players[i].position = layout[k];
 
     this.deck = Cards.newDeck();
     this.board = [];
@@ -104,13 +120,13 @@ class PokerGame {
     this.currentBet = this.bb;
     this.minRaise = this.bb;
 
-    for (let r = 0; r < 2; r++) for (let k = 1; k <= n; k++) this.players[(this.dealer + k) % n].cards.push(this.deck.pop());
+    for (let r = 0; r < 2; r++) for (let k = 0, i = this.next(this.dealer); k < n; k++, i = this.next(i)) this.players[i].cards.push(this.deck.pop());
 
     this.toAct = this.next(bbIdx);
     this.history = {
       handNum: this.handNum, sb: this.sb, bb: this.bb, dealer: this.dealer,
       players: this.players.map(p => ({
-        id: p.id, name: p.name, isHero: p.isHero, profile: p.profile, position: p.position,
+        id: p.id, name: p.name, isHero: p.isHero, profile: p.profile, position: p.position, out: !!p.out,
         cards: p.cards.slice(), startStack: p.stack + p.contrib,
       })),
       actions: [],

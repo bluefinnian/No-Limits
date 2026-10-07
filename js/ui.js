@@ -87,6 +87,11 @@ function initSubtabs(section, onShow) {
   show(buttons.some(b => b.dataset.sub === saved) ? saved : buttons[0].dataset.sub);
 }
 
+function ordinal(n) {
+  const s = ['th', 'st', 'nd', 'rd'], v = n % 100;
+  return n + (s[(v - 20) % 10] || s[v] || s[0]);
+}
+
 function pct(x, digits = 1) {
   return (x * 100).toFixed(digits) + '%';
 }

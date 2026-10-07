@@ -2,7 +2,7 @@
 /* App bootstrap and tab routing. */
 
 const App = {
-  tabs: ['hands', 'tells', 'spots', 'ranges', 'arena'],
+  tabs: ['hands', 'tells', 'spots', 'ranges', 'arena', 'tournament'],
 
   init() {
     RangeStore.load();
@@ -10,9 +10,10 @@ const App = {
     Tells.init();
     Spots.init();
     Builder.init();
-    Review.init();
     HandLab.init();
+    Tournament.prepareDom(); // clones the arena table UI, so it must run before Arena.init
     Arena.init();
+    Tournament.init();
 
     $$('#main-tabs button').forEach(b => b.addEventListener('click', () => { location.hash = b.dataset.tab; }));
     window.addEventListener('hashchange', () => this.show(location.hash.slice(1)));
@@ -26,8 +27,10 @@ const App = {
     $$('#main-tabs button').forEach(b => b.classList.toggle('active', b.dataset.tab === tab));
     $$('.tab-panel').forEach(p => p.classList.toggle('active', p.id === 'tab-' + tab));
     document.body.classList.toggle('on-arena', tab === 'arena');
+    document.body.classList.toggle('on-tournament', tab === 'tournament');
     Store.set('nlh.tab', tab);
     if (tab === 'arena') Arena.layoutSeats();
+    if (tab === 'tournament') Tournament.layoutSeats();
     window.scrollTo(0, 0);
   },
 };

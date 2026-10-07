@@ -6,13 +6,21 @@ const Review = {
   current: -1,   // index into hands
   step: 0,
 
-  init() {
-    this.panel = $('#review-panel');
-    $('#rv-close').onclick = () => this.close();
-    $('#rv-deal').onclick = () => { this.close(); Arena.deal(); };
-    $('#rv-hand').onchange = e => this.open(+e.target.value);
+  $(sel) { return this.panel.querySelector(sel); },
+  $$(sel) { return Array.from(this.panel.querySelectorAll(sel)); },
+
+  /** host: the table controller (Arena or Tournament) this review panel belongs to. */
+  init(host) {
+    this.host = host;
+    this.hands = [];
+    this.current = -1;
+    this.step = 0;
+    this.panel = host.$('#review-panel');
+    this.$('#rv-close').onclick = () => this.close();
+    this.$('#rv-deal').onclick = () => { this.close(); this.host.deal(); };
+    this.$('#rv-hand').onchange = e => this.open(+e.target.value);
     document.addEventListener('keydown', e => {
-      if (this.panel.hidden || !document.body.classList.contains('on-arena')) return;
+      if (this.panel.hidden || !document.body.classList.contains(this.host.tabClass)) return;
       if (['INPUT', 'SELECT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
       if (e.key === 'ArrowRight') { e.preventDefault(); this.go(this.step + 1); }
       if (e.key === 'ArrowLeft') { e.preventDefault(); this.go(this.step - 1); }
@@ -36,25 +44,25 @@ const Review = {
 
   close() {
     this.panel.hidden = true;
-    $('#btn-review').classList.remove('active');
+    this.host.$('#btn-review').classList.remove('active');
   },
 
   open(i = this.latestIndex) {
     if (i < 0 || !this.hands[i]) return;
-    clearTimeout(Arena.autoTimer); // don't auto-deal while reviewing
+    clearTimeout(this.host.autoTimer); // don't auto-deal while reviewing
     this.current = i;
     this.step = 0;
     this.panel.hidden = false;
-    $('#btn-review').classList.add('active');
-    $('#rv-hand').innerHTML = this.hands.map((x, k) => {
+    this.host.$('#btn-review').classList.add('active');
+    this.$('#rv-hand').innerHTML = this.hands.map((x, k) => {
       const hero = x.h.players.find(p => p.isHero);
       const net = hero.net / x.h.bb;
       return `<option value="${k}">Hand #${x.h.handNum} · ${Cards.handCode(hero.cards[0], hero.cards[1])} · ${net >= 0 ? '+' : ''}${net.toFixed(1)}bb</option>`;
     }).reverse().join('');
-    $('#rv-hand').value = i;
+    this.$('#rv-hand').value = i;
     const entry = this.hands[i];
     if (!entry.analysis) {
-      setHTML($('#rv-body'), '<div class="rv-loading">Analyzing your decisions…</div>');
+      setHTML(this.$('#rv-body'), '<div class="rv-loading">Analyzing your decisions…</div>');
       setTimeout(() => {
         entry.analysis = Analysis.analyzeHand(entry.h, entry.helper);
         if (this.current === i) this.render();
@@ -96,7 +104,7 @@ const Review = {
     const winners = new Map(h.results.map(r => [r.id, r]));
     const fullBoard = [...h.board, ...(h.runout || [])];
 
-    const players = h.players.map(p => {
+    const players = h.players.filter(p => !p.out).map(p => {
       const fs = foldStreet(p.id);
       const w = winners.get(p.id);
       const shown = fullBoard.length === 5 ? describeHand(evaluateHand([...p.cards, ...fullBoard])) : '';
@@ -118,7 +126,7 @@ const Review = {
         <span>${STREET_NAMES[s.street]}</span><b>${Analysis.actionLabel(s.action, h.bb)}</b>
       </button>`).join('');
 
-    setHTML($('#rv-body'), `
+    setHTML(this.$('#rv-body'), `
       <div class="rv-summary">
         <div class="rv-result ${net >= 0 ? 'pos' : 'neg'}">${net >= 0 ? '+' : ''}${net.toFixed(1)} bb</div>
         <div class="rv-counts">
@@ -140,8 +148,8 @@ const Review = {
 
     $$('.rv-pill', this.panel).forEach(b => (b.onclick = () => this.go(+b.dataset.step)));
     if (analysis.steps.length) {
-      $('#rv-prev').onclick = () => this.go(this.step - 1);
-      $('#rv-next').onclick = () => this.go(this.step + 1);
+      this.$('#rv-prev').onclick = () => this.go(this.step - 1);
+      this.$('#rv-next').onclick = () => this.go(this.step + 1);
       this.renderStep();
     }
     this.renderTimeline();
@@ -166,8 +174,8 @@ const Review = {
         html += `<div class="tl-tell">👁 ${esc(t.text)} <span class="${t.honest === null ? 'muted' : t.honest ? 'good' : 'bad'}">${LiveTells.verdictLabel(t)} (${esc(t.truth.label)})</span></div>`;
       }
     });
-    setHTML($('#rv-timeline'), html);
-    $$('#rv-timeline [data-step]').forEach(el => (el.onclick = () => this.go(+el.dataset.step)));
+    setHTML(this.$('#rv-timeline'), html);
+    this.$$('#rv-timeline [data-step]').forEach(el => (el.onclick = () => this.go(+el.dataset.step)));
   },
 
   /* ---------- single decision view ---------- */
@@ -177,8 +185,8 @@ const Review = {
     const a = s.action;
     const hero = analysis.hero;
     $$('.rv-pill', this.panel).forEach(b => b.classList.toggle('active', +b.dataset.step === this.step));
-    $('#rv-prev').disabled = this.step === 0;
-    $('#rv-next').disabled = this.step === analysis.steps.length - 1;
+    this.$('#rv-prev').disabled = this.step === 0;
+    this.$('#rv-next').disabled = this.step === analysis.steps.length - 1;
 
     // Action leading up to this decision on the same street.
     const before = h.actions.slice(0, s.idx).filter(x => x.street === a.street)
@@ -209,7 +217,7 @@ const Review = {
 
     const rangeExtra = s.range.freq ? freqBarHtml(s.range.freq) : '';
 
-    setHTML($('#rv-step'), `
+    setHTML(this.$('#rv-step'), `
       <div class="rv-step">
         <div class="rv-spot">
           <div class="rv-spot-head">
