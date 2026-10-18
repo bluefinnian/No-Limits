@@ -174,9 +174,24 @@ const Arena = {
     this.review.close();
     // Bring the table back into view (e.g. after scrolling down through the hand review).
     if (document.activeElement && document.activeElement !== document.body) document.activeElement.blur();
-    window.scrollTo(0, 0);
     this.setMessage('');
     this.game.startHand();
+    this.centerTable();
+  },
+
+  /** Scrolls so the table and action bar sit in the middle of the screen (below the sticky header). */
+  centerTable() {
+    const go = () => {
+      const top = this.$('.table-wrap').getBoundingClientRect().top + window.scrollY;
+      const bottom = this.$('#action-bar').getBoundingClientRect().bottom + window.scrollY;
+      const header = ($('.topbar') || { offsetHeight: 0 }).offsetHeight;
+      const avail = window.innerHeight - header;
+      const h = bottom - top;
+      const y = h < avail ? top - header - (avail - h) / 2 : top - header - 8;
+      window.scrollTo(0, Math.max(0, y));
+    };
+    go();
+    requestAnimationFrame(go); // again after layout settles (review panel closing, etc.)
   },
 
   /* =================== Table rendering =================== */
@@ -437,16 +452,20 @@ const Arena = {
     this.handTells = [];
     this.renderReads();
     const code = Cards.handCode(hero.cards[0], hero.cards[1]);
-    this.helper = { code, roll: Math.floor(Math.random() * 100), range: this.resolveRange(hero.position) };
+    // Effective stack in big blinds: your stack vs the biggest other stack still in the game.
+    const total = p => p.stack + p.contrib;
+    const others = g.players.filter(p => !p.isHero && !p.out && p.cards.length);
+    const stackBB = Math.min(total(hero), Math.max(0, ...others.map(total))) / g.bb;
+    this.helper = { code, roll: Math.floor(Math.random() * 100), stackBB, range: this.resolveRange(hero.position, stackBB) };
     this.lastDiscipline = null;
     this.setActionsEnabled(false);
     setHTML(this.$('#action-info'), 'Dealing…');
   },
 
-  resolveRange(position) {
+  resolveRange(position, stackBB = 100) {
     const sel = this.settings.rangeSel;
     if (!sel) return null;
-    if (sel === 'auto') return RangeStore.byPosition(position);
+    if (sel === 'auto') return RangeStore.best(position, stackBB);
     return RangeStore.get(sel);
   },
 
@@ -571,7 +590,7 @@ const Arena = {
     this.$('#rh-select').onchange = e => {
       this.settings.rangeSel = e.target.value;
       this.saveSettings();
-      if (this.helper && this.game) this.helper.range = this.resolveRange(this.game.hero.position);
+      if (this.helper && this.game) this.helper.range = this.resolveRange(this.game.hero.position, this.helper.stackBB);
       this.renderRangeHelper();
     };
     const sug = this.$('#rh-show-suggestion');
@@ -584,9 +603,10 @@ const Arena = {
     const sel = this.$('#rh-select');
     sel.innerHTML = `<option value="">Off</option><option value="auto">Auto — match my position</option>` +
       RangeStore.ranges.map(r => `<option value="${r.id}">${esc(r.name)}${r.position ? ' (' + r.position + ')' : ''}</option>`).join('');
+    sel.options[1].textContent = 'Auto — match my position & stack';
     const v = this.settings.rangeSel;
     sel.value = [...sel.options].some(o => o.value === v) ? v : 'auto';
-    if (this.helper && this.game) this.helper.range = this.resolveRange(this.game.hero.position);
+    if (this.helper && this.game) this.helper.range = this.resolveRange(this.game.hero.position, this.helper.stackBB);
     this.renderRangeHelper();
   },
 
@@ -596,22 +616,28 @@ const Arena = {
     if (!this.settings.rangeSel) { setHTML(body, '<p class="hint">Pick a range to see your hand\'s frequencies and an RNG roll every hand.</p>'); return; }
     if (!g || !h || !g.handNum) { setHTML(body, '<p class="hint">Your range info appears here once cards are dealt.</p>'); return; }
     const pos = g.hero.position;
+    const want = depthFor(h.stackBB);
+    const stackLine = `<div class="rh-stack">Effective stack <b>${h.stackBB.toFixed(1)}bb</b> · ${want.label}</div>`;
     if (!h.range) {
-      setHTML(body, `<div class="rh-hand"><b>${h.code}</b><span class="pos-badge">${pos}</span></div><p class="hint">No saved range tagged <b>${pos}</b>. Tag one in the Range Builder or pick a range above.</p>`);
+      setHTML(body, `<div class="rh-hand"><b>${h.code}</b><span class="pos-badge">${pos}</span></div>${stackLine}<p class="hint">No saved range tagged <b>${pos}</b>. Tag one in the Range Builder or pick a range above.</p>`);
       return;
     }
+    const mismatch = h.range.depth && h.range.depth !== want.key;
+    const isPush = h.range.depth === 'push';
     const f = handFreq(h.range, h.code);
     const target = actionForRoll(f, h.roll);
     const show = this.settings.showSuggestion;
     const d = this.lastDiscipline;
     setHTML(body, `
-      <div class="rh-range-name">${esc(h.range.name)}</div>
+      <div class="rh-range-name">${esc(h.range.name)}${h.range.depth ? ` <span class="depth-badge">${depthLabel(h.range.depth).replace(' (push/fold)', '')}</span>` : ''}</div>
+      ${stackLine}
+      ${mismatch ? `<div class="rh-warn">⚠ This range is built for ${depthLabel(h.range.depth)} stacks — you have ${h.stackBB.toFixed(0)}bb. ${this.settings.rangeSel === 'auto' ? `Build a ${want.label} range for ${pos} to tune it.` : 'Switch to Auto to match your stack.'}</div>` : ''}
       <div class="rh-hand">
         <div class="rh-code"><b>${h.code}</b><span class="pos-badge">${pos}</span></div>
         <div class="rh-roll" title="Random number 0-99. Raise if below raise %, then call, then fold."><span>RNG</span><b>${h.roll}</b></div>
       </div>
       ${freqBarHtml(f)}
-      ${show ? `<div class="rh-suggest act-${target}">RNG says: <b>${target === 'call' ? (pos === 'SB' && h.range.position === 'SB' ? 'CALL / LIMP' : 'CALL') : target.toUpperCase()}</b></div>` : ''}
+      ${show ? `<div class="rh-suggest act-${target}">RNG says: <b>${target === 'call' ? (pos === 'SB' && h.range.position === 'SB' && !isPush ? 'CALL / LIMP' : 'CALL') : target === 'raise' && isPush ? 'SHOVE (ALL-IN)' : target.toUpperCase()}</b></div>` : ''}
       ${d ? `<div class="rh-result ${d.followed ? 'good' : 'bad'}">${d.followed ? '✓ You followed your range' : `✗ You ${d.did === 'check' ? 'checked' : d.did === 'raise' ? 'raised' : d.did === 'call' ? 'called' : 'folded'}; range said ${d.target}`}</div>` : ''}
       <div class="range-grid mini" id="rh-grid"></div>`);
     renderRangeGrid(this.$('#rh-grid'), h.range.hands, { mini: true, highlight: h.code });

@@ -6,7 +6,7 @@
   <title>No Limits — NLHE Study & Practice</title>
   <meta name="description" content="Study No-Limit Texas Hold'em hands, tells and spots, build your own ranges and practice against AI opponents.">
   <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>♠</text></svg>">
-  <link rel="stylesheet" href="css/style.css?v=7">
+  <link rel="stylesheet" href="css/style.css?v=8">
 </head>
 <body>
   <header class="topbar">
@@ -102,6 +102,12 @@
               <select id="rb-position">
                 <option value="">Any</option>
                 <option>UTG</option><option>HJ</option><option>CO</option><option>BTN</option><option>SB</option><option>BB</option>
+              </select>
+            </label>
+            <label>Stack depth
+              <select id="rb-depth">
+                <option value="">Any stack</option>
+                <option value="push">≤12bb (push/fold)</option><option value="short">12–30bb</option><option value="mid">30–60bb</option><option value="deep">60bb+</option>
               </select>
             </label>
             <label class="grow">Notes <input type="text" id="rb-note" maxlength="140" placeholder="e.g. BTN open, 100bb, 2.5x"></label>
@@ -307,19 +313,19 @@
     </div>
   </div>
 
-  <script src="js/cards.js?v=7"></script>
-  <script src="js/ranges.js?v=7"></script>
-  <script src="js/ai.js?v=7"></script>
-  <script src="js/game.js?v=7"></script>
-  <script src="js/ui.js?v=7"></script>
-  <script src="js/analysis.js?v=7"></script>
-  <script src="js/review.js?v=7"></script>
-  <script src="js/tells.js?v=7"></script>
-  <script src="js/handlab.js?v=7"></script>
-  <script src="js/study.js?v=7"></script>
-  <script src="js/builder.js?v=7"></script>
-  <script src="js/arena.js?v=7"></script>
-  <script src="js/tournament.js?v=7"></script>
-  <script src="js/app.js?v=7"></script>
+  <script src="js/cards.js?v=8"></script>
+  <script src="js/ranges.js?v=8"></script>
+  <script src="js/ai.js?v=8"></script>
+  <script src="js/game.js?v=8"></script>
+  <script src="js/ui.js?v=8"></script>
+  <script src="js/analysis.js?v=8"></script>
+  <script src="js/review.js?v=8"></script>
+  <script src="js/tells.js?v=8"></script>
+  <script src="js/handlab.js?v=8"></script>
+  <script src="js/study.js?v=8"></script>
+  <script src="js/builder.js?v=8"></script>
+  <script src="js/arena.js?v=8"></script>
+  <script src="js/tournament.js?v=8"></script>
+  <script src="js/app.js?v=8"></script>
 </body>
 </html>

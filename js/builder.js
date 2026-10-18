@@ -20,7 +20,7 @@ const Builder = {
   },
 
   createRange(name = 'New Range') {
-    const r = { id: RangeStore.newId(), name, position: '', note: '', hands: {} };
+    const r = { id: RangeStore.newId(), name, position: '', depth: '', note: '', hands: {} };
     RangeStore.upsert(r);
     return r;
   },
@@ -30,6 +30,7 @@ const Builder = {
     Store.set('nlh.builder.current', range.id);
     $('#rb-name').value = range.name;
     $('#rb-position').value = range.position || '';
+    $('#rb-depth').value = range.depth || '';
     $('#rb-note').value = range.note || '';
     this.renderList();
     this.renderGrid();
@@ -45,7 +46,7 @@ const Builder = {
       const st = rangeStats(r.hands);
       return `<li class="${this.current && r.id === this.current.id ? 'active' : ''}" data-id="${r.id}">
         <div class="rl-name">${esc(r.name)}</div>
-        <div class="rl-meta">${r.position ? `<span class="pos-badge">${r.position}</span>` : ''}<span>${st.totalPct.toFixed(1)}%</span></div>
+        <div class="rl-meta">${r.position ? `<span class="pos-badge">${r.position}</span>` : ''}${r.depth ? `<span class="depth-badge">${depthLabel(r.depth).replace(' (push/fold)', '')}</span>` : ''}<span>${st.totalPct.toFixed(1)}%</span></div>
       </li>`;
     }).join('') || '<li class="empty">No ranges yet.</li>';
     $$('li[data-id]', list).forEach(li => (li.onclick = () => this.select(RangeStore.get(li.dataset.id))));
@@ -157,6 +158,7 @@ const Builder = {
   bindMeta() {
     $('#rb-name').oninput = e => { this.current.name = e.target.value || 'Untitled'; this.save(); };
     $('#rb-position').onchange = e => { this.current.position = e.target.value; this.save(); };
+    $('#rb-depth').onchange = e => { this.current.depth = e.target.value; this.save(); };
     $('#rb-note').oninput = e => { this.current.note = e.target.value; this.save(); };
     $('#rb-new').onclick = () => this.select(this.createRange());
     $('#rb-duplicate').onclick = () => {
@@ -224,7 +226,7 @@ const Builder = {
                   const h = r.hands[code];
                   if (h && (+h.r || +h.c)) hands[code] = { r: Math.min(100, +h.r || 0), c: Math.min(100 - Math.min(100, +h.r || 0), +h.c || 0) };
                 }
-                RangeStore.upsert({ id: RangeStore.newId(), name: String(r.name || 'Imported range').slice(0, 60), position: POSITIONS.includes(r.position) ? r.position : '', note: String(r.note || '').slice(0, 140), hands });
+                RangeStore.upsert({ id: RangeStore.newId(), name: String(r.name || 'Imported range').slice(0, 60), position: POSITIONS.includes(r.position) ? r.position : '', depth: DEPTHS.some(d => d.key === r.depth) ? r.depth : '', note: String(r.note || '').slice(0, 140), hands });
                 n++;
               }
               if (!n) throw new Error('No ranges found');

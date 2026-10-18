@@ -766,3 +766,9 @@ input[type=checkbox] { accent-color: var(--accent); }
   .poker-table.many .seat-name { max-width: 44px; }
   .t-final-place { font-size: 1.8rem; min-width: 56px; }
 }
+
+/* ---------- Stack-depth ranges ---------- */
+.depth-badge { font-size: .62rem; font-weight: 800; background: #3a2f12; color: var(--accent); padding: 1px 6px; border-radius: 4px; letter-spacing: .3px; white-space: nowrap; }
+.rh-stack { font-size: .78rem; color: var(--muted); margin: 4px 0 2px; }
+.rh-stack b { color: var(--text); }
+.rh-warn { font-size: .78rem; color: var(--meh); background: rgba(224, 164, 59, .1); border: 1px solid rgba(224, 164, 59, .35); border-radius: 6px; padding: 5px 8px; margin: 6px 0; }

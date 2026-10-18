@@ -310,7 +310,17 @@ const Analysis = {
         r.push(rec === 'raise' ? `${code} (top ${top}) is strong enough to raise for value and take the initiative.` : `${code} (top ${top}) plays fine as a free check — no need to build a pot out of position.`);
         return this.grade(did, rec, pct < 0.3 ? ['raise', 'check'] : ['check'], r);
       }
-      const th = this.rfiFor(pos, n);
+      let th = this.rfiFor(pos, n);
+      if (!limpers && stackBB <= 12 && pos !== 'BB') {
+        const push = { UTG: 0.13, 'UTG+1': 0.13, MP: 0.15, LJ: 0.16, HJ: 0.17, CO: 0.24, BTN: 0.37, SB: 0.5 }[pos] || 0.2;
+        r.push(`With <b>${stackBB.toFixed(1)}bb</b> it's push-or-fold from the ${pos}: shove roughly the top <b>${this.pct(push)}</b>. ${code} is in the top <b>${top}</b>.`);
+        if (pct < push) {
+          r.push('Move all-in — at this depth a standard raise commits you anyway, and shoving maximizes fold equity.');
+          return this.grade(did, 'raise', [], r);
+        }
+        r.push('Not strong enough to shove from here — fold and wait for a better spot.');
+        return this.grade(did, 'fold', pct < push * 1.2 ? ['raise'] : [], r);
+      }
       if (!limpers) {
         r.push(`Folded to you in the <b>${pos}</b>. A standard ${pos} opening range is about <b>${this.pct(th)}</b> of hands; ${code} is in the top <b>${top}</b>.`);
         if (pct < th) {
@@ -472,6 +482,7 @@ const Analysis = {
         const ideal = pos === 'SB' ? [2.5, 3.5] : [2, 3.2];
         r.push(`You raised to ${this.bbs(a.amount, bb)}${limpers ? ` with ${limpers} limper${limpers > 1 ? 's' : ''} (≈${sizeBB.toFixed(1)}bb + 1bb each)` : ''}.`);
         if (jam && a.amount / bb > 25) { verdict = 'mistake'; r.push('Open-shoving deep risks a lot to win the blinds and only gets called by better hands.'); }
+        else if (jam && a.amount / bb <= 15) r.push('Shoving is the standard play at this stack depth.');
         else if (sizeBB < ideal[0] - 0.01) { verdict = 'ok'; r.push('That\'s a small open — fine in some spots, but standard is 2–3bb (3bb from the SB).'); }
         else if (sizeBB > ideal[1] + 1) { verdict = sizeBB > 6 ? 'mistake' : 'ok'; r.push(`Larger than standard (${ideal[0]}–${ideal[1]}bb${limpers ? ' + 1bb per limper' : ''}). Big opens risk more to win the same blinds.`); }
         else r.push(`Standard sizing (${ideal[0]}–${ideal[1]}bb${limpers ? ' + 1bb per limper' : ''}).`);
